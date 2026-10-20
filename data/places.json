@@ -1,0 +1,14 @@
+[
+  {
+    "id": "example-place",
+    "city": "EXAMPLE CITY",
+    "name": "EXAMPLE PLACE (replace me)",
+    "category": "landmark",
+    "lat": 0,
+    "lng": 0,
+    "openingHours": null,
+    "description": "Example entry to show the format. Delete when real data is added.",
+    "imageUrl": null,
+    "imageCredit": null
+  }
+]
