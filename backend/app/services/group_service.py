@@ -1,4 +1,4 @@
-from models.group import Group
+from ..models.group import Group
 
 class GroupService:
     def create_group(
