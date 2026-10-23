@@ -86,10 +86,10 @@ roamies/
 - Place `id` is a readable slug such as `vie-albertina`.
 
 **Git**
-- One issue = one branch = one pull request. Reference the issue with `Closes #N`.
-- No direct pushes to `main`. Every change goes through a PR with at least one review.
-- Small commits, English commit messages.
-- Branch names: `feature/short-name`, `fix/short-name`, `docs/short-name`.
+- Branches: `main` (stable, demo and hand-in versions), `dev` (integration, default branch), short-lived `feature/...`, `fix/...`, `docs/...` created from `dev`.
+- Feature branch → PR into `dev` (squash merge). `dev` → `main` by PR every week or at each milestone (merge commit, not squash).
+- One issue = one branch = one pull request, linked with `Closes #N`.
+- No direct pushes to `main` or `dev`. Every change needs at least one review.
 
 **Secrets**
 - Real values live only in local `.env` files, which are never committed. `.env.example` files list the variable names with empty values.
