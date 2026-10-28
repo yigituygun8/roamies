@@ -1,21 +1,20 @@
-"""Fairness-aware vote aggregation. Deterministic, no LLM.
+"""Choose places for a trip from the group's yes/no votes, fairly. Deterministic, no LLM.
 
-Strategy: least misery, implemented as greedy maximin over member satisfaction.
+Strategy: least misery. A member's satisfaction = (liked places in the plan) / (places they liked).
+Places are added one at a time; each time we add the place that makes the LEAST happy member
+as happy as possible, so nobody is left out.
 
-- A member's satisfaction = (liked places that are in the plan) / (places they liked).
-- Places are picked one at a time. Each step picks the place that gives the least
-  happy member the highest satisfaction ("nobody is left out").
-- Ties are broken by net approval (yes minus no), then by yes votes, then by fewer
-  no votes, then alphabetically by place id, so the same votes always give the
-  same plan.
-
-For comparison we also compute the plain majority plan (most net approval) and the
-satisfaction of its least happy member. This makes the fairness gain measurable.
+The file has four small parts (read top to bottom):
+1. VoteTable          - who said yes / no to each place.
+2. Measuring          - how happy each member is with a plan.
+3. Choosing           - the least misery loop, and the plain majority plan we compare against.
+4. Result             - the chosen places, with who each one helped.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# ---------------------------------------------------------------------------- 1. votes
 
 @dataclass(frozen=True)
 class Vote:
@@ -24,90 +23,150 @@ class Vote:
     liked: bool
 
 
+class VoteTable:
+    """The votes of trip members. A later vote on the same place replaces an earlier one."""
+
+    def __init__(self, member_ids: list[str], votes: list[Vote]):
+        self.members = list(member_ids)
+        members = set(member_ids)
+
+        latest: dict[tuple[str, str], bool] = {}  # (user, place) -> liked
+        for vote in votes:
+            if vote.user_id in members:  # votes from people outside the trip are ignored
+                latest[(vote.user_id, vote.place_id)] = vote.liked
+
+        self._yes: dict[str, set[str]] = {}  # place -> users who said yes
+        self._no: dict[str, set[str]] = {}   # place -> users who said no
+        for (user, place), liked in latest.items():
+            voters = self._yes if liked else self._no
+            voters.setdefault(place, set()).add(user)
+
+    def candidates(self) -> list[str]:
+        """Places at least one member liked, in alphabetical order."""
+        return sorted(place for place, users in self._yes.items() if users)
+
+    def likers(self, place: str) -> set[str]:
+        return self._yes.get(place, set())
+
+    def yes_count(self, place: str) -> int:
+        return len(self._yes.get(place, ()))
+
+    def no_count(self, place: str) -> int:
+        return len(self._no.get(place, ()))
+
+    def net(self, place: str) -> int:
+        return self.yes_count(place) - self.no_count(place)
+
+    def likes_of(self, user: str) -> set[str]:
+        return {place for place, users in self._yes.items() if user in users}
+
+
+# ---------------------------------------------------------------------------- 2. measuring
+
+def satisfaction(table: VoteTable, plan: set[str]) -> dict[str, float]:
+    """Member -> share of their liked places that are in the plan.
+    Members who liked nothing are left out (nothing to satisfy)."""
+    result = {}
+    for user in table.members:
+        liked = table.likes_of(user)
+        if liked:
+            result[user] = len(liked & plan) / len(liked)
+    return result
+
+
+def lowest_satisfaction(table: VoteTable, plan: set[str]) -> float | None:
+    """Satisfaction of the least happy member, or None if nobody liked anything."""
+    values = satisfaction(table, plan).values()
+    return min(values) if values else None
+
+
+# ---------------------------------------------------------------------------- 3. choosing
+
+def least_misery_plan(table: VoteTable, k: int) -> list[str]:
+    """Add places one at a time until the plan has k places (or nothing is left).
+    Each step adds the best place according to _ranking."""
+    plan: list[str] = []
+    remaining = table.candidates()
+    while len(plan) < k and remaining:
+        best = max(remaining, key=lambda place: _ranking(table, set(plan), place))
+        plan.append(best)
+        remaining.remove(best)
+    return plan
+
+
+def _ranking(table: VoteTable, plan: set[str], place: str) -> tuple:
+    """What max() compares, in order:
+    1. how happy the least happy member would be with this place added (the least misery rule),
+    2. then more net votes, 3. more yes votes, 4. fewer no votes.
+    If everything is equal, max() keeps the first place in the list, and the list is alphabetical,
+    so the same votes always give the same plan."""
+    lowest = lowest_satisfaction(table, plan | {place}) or 0.0
+    return (lowest, table.net(place), table.yes_count(place), -table.no_count(place))
+
+
+def majority_plan(table: VoteTable, k: int) -> list[str]:
+    """The plain majority plan (most net votes), only used to show how much fairer our plan is."""
+    by_votes = sorted(table.candidates(),
+                      key=lambda place: (table.net(place), table.yes_count(place), -table.no_count(place)),
+                      reverse=True)  # sorted() keeps alphabetical order for equal places
+    return by_votes[:k]
+
+
+# ---------------------------------------------------------------------------- 4. result
+
 @dataclass(frozen=True)
 class Pick:
     place_id: str
-    yes: tuple[str, ...]  # user ids who liked it (sorted)
+    yes: tuple[str, ...]            # members who liked it (sorted)
     no_count: int
-    in_majority_plan: bool
-    helped: tuple[str, ...] = ()  # least happy members this pick helped (only for fairness picks)
+    in_majority_plan: bool          # would plain majority voting also pick it?
+    helped: tuple[str, ...] = ()    # least happy members this pick lifted (for the reason text)
 
 
 @dataclass
 class FairnessResult:
     picks: list[Pick]
-    liked_count: dict[str, int]
-    included_count: dict[str, int]
-    min_satisfaction: float | None
+    liked_count: dict[str, int]       # member -> places they liked
+    included_count: dict[str, int]    # member -> of those, places in the plan
+    min_satisfaction: float | None    # least happy member with this plan
     majority_place_ids: list[str] = field(default_factory=list)
-    majority_min_satisfaction: float | None = None
-
-
-def _tally(member_ids: list[str], votes: list[Vote]):
-    members = set(member_ids)
-    yes: dict[str, set[str]] = {}
-    no: dict[str, set[str]] = {}
-    for v in votes:
-        if v.user_id not in members:
-            continue
-        (yes if v.liked else no).setdefault(v.place_id, set()).add(v.user_id)
-        # a later vote for the same place replaces an earlier one
-        (no if v.liked else yes).get(v.place_id, set()).discard(v.user_id)
-    return yes, no
-
-
-def satisfaction(liked: dict[str, set[str]], chosen: set[str]) -> dict[str, float]:
-    """user -> share of their liked places that are chosen (only members who liked something)."""
-    return {u: len(places & chosen) / len(places) for u, places in liked.items() if places}
-
-
-def _min(values: dict[str, float]) -> float | None:
-    return min(values.values()) if values else None
+    majority_min_satisfaction: float | None = None  # least happy member with the majority plan
 
 
 def select_places(member_ids: list[str], votes: list[Vote], k: int) -> FairnessResult:
-    yes, no = _tally(member_ids, votes)
-    candidates = sorted(p for p, users in yes.items() if users)
-    liked: dict[str, set[str]] = {u: set() for u in member_ids}
-    for p in candidates:
-        for u in yes[p]:
-            liked[u].add(p)
+    """Choose up to k places with least misery, and compare with the plain majority plan."""
+    table = VoteTable(member_ids, votes)
+    plan = least_misery_plan(table, k)
+    majority = majority_plan(table, k)
 
-    def net(p: str) -> int:
-        return len(yes.get(p, ())) - len(no.get(p, ()))
-
-    k = max(0, min(k, len(candidates)))
-
-    # Majority baseline: highest net approval.
-    majority = sorted(candidates, key=lambda p: (-net(p), -len(yes[p]), len(no.get(p, ())), p))[:k]
-    majority_set = set(majority)
-
-    chosen: list[str] = []
-    picks: list[Pick] = []
-    remaining = list(candidates)
-    while len(chosen) < k and remaining:
-        current = satisfaction(liked, set(chosen))
-        current_min = _min(current)
-
-        def key(p: str):
-            after = satisfaction(liked, set(chosen) | {p})
-            return (-(_min(after) or 0.0), -net(p), -len(yes[p]), len(no.get(p, ())), p)
-
-        best = min(remaining, key=key)
-        after_min = _min(satisfaction(liked, set(chosen) | {best}))
-        helped: tuple[str, ...] = ()
-        if best not in majority_set and current_min is not None and after_min is not None and after_min > current_min:
-            helped = tuple(sorted(u for u, s in current.items() if s == current_min and best in liked[u]))
-        picks.append(Pick(best, tuple(sorted(yes[best])), len(no.get(best, ())), best in majority_set, helped))
-        chosen.append(best)
-        remaining.remove(best)
-
-    chosen_set = set(chosen)
     return FairnessResult(
-        picks=picks,
-        liked_count={u: len(places) for u, places in liked.items()},
-        included_count={u: len(places & chosen_set) for u, places in liked.items()},
-        min_satisfaction=_min(satisfaction(liked, chosen_set)),
+        picks=_explain_picks(table, plan, set(majority)),
+        liked_count={user: len(table.likes_of(user)) for user in table.members},
+        included_count={user: len(table.likes_of(user) & set(plan)) for user in table.members},
+        min_satisfaction=lowest_satisfaction(table, set(plan)),
         majority_place_ids=majority,
-        majority_min_satisfaction=_min(satisfaction(liked, majority_set)),
+        majority_min_satisfaction=lowest_satisfaction(table, set(majority)),
     )
+
+
+def _explain_picks(table: VoteTable, plan: list[str], majority_plan: set[str]) -> list[Pick]:
+    """Turn the chosen place ids into Picks. A pick that majority voting would skip, and that lifts
+    the least happy members, records who it helped ("Added so Cem also gets one of their picks")."""
+    picks: list[Pick] = []
+    so_far: set[str] = set()
+    for place in plan:
+        before = satisfaction(table, so_far)
+        lowest_before = min(before.values()) if before else None
+        lowest_after = lowest_satisfaction(table, so_far | {place})
+
+        helped: tuple[str, ...] = ()
+        lifted = lowest_before is not None and lowest_after is not None and lowest_after > lowest_before
+        if place not in majority_plan and lifted:
+            helped = tuple(sorted(
+                user for user, value in before.items() if value == lowest_before and user in table.likers(place)
+            ))
+
+        picks.append(Pick(place, tuple(sorted(table.likers(place))), table.no_count(place),
+                          place in majority_plan, helped))
+        so_far.add(place)
+    return picks

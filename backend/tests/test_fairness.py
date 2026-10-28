@@ -51,3 +51,16 @@ def test_popular_places_win_once_everyone_is_covered():
     })
     r = select_places(["a", "b"], v, k=2)
     assert [p.place_id for p in r.picks] == ["p1", "p2"]
+
+
+def test_least_misery_balances_percentages_not_place_counts():
+    # Ana likes 2 places, Ben likes 6. Least misery evens out the share of each wish list
+    # (both 50%), so Ben gets more places. This is how the algorithm is meant to behave.
+    v = votes({
+        "ana": {"albertina": True, "belvedere": True, "prater": False},
+        "ben": {"albertina": False, "belvedere": False, "prater": True, "riesenrad": True,
+                "donauturm": True, "kahlenberg": True, "naschmarkt": True, "stephansdom": True},
+    })
+    r = select_places(["ana", "ben"], v, k=4)
+    assert r.included_count == {"ana": 1, "ben": 3}
+    assert r.min_satisfaction == 0.5
