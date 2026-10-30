@@ -178,6 +178,8 @@ Add a row whenever we choose a technology, change direction, or solve a notable 
 |---|---|---|
 | 2026-10-19 | Stack: React Native (Expo), Supabase, FastAPI | Team decision. Supabase covers auth, database, realtime. FastAPI hosts the algorithm and LLM calls. |
 | 2026-10-20 | Expo SDK 58 + `src/` layout + `expo-dev-client` | Default Expo SDK 58 scaffolds under `src/` with `@/*` alias. Adopted development builds (`expo-dev-client`) over Expo Go due to SDK compatibility. Supabase client works with native URL support (no polyfill required). |
+| 2026-10-30 | Splash intro video: baked background instead of transparency | iOS only plays transparent video as HEVC with alpha in a `.mov`, which cannot be encoded reliably on Windows. Because the splash background is a single flat colour, the animation is rendered on `#080C22` and shipped as H.264 `.mp4` with `expo-video`. The colour lives in `mobile/src/lib/theme.ts`, `app.json` and the video file, so all three must stay in sync. |
+| 2026-10-30 | Splash video must be re-timed from raw frames, not composited with `overlay` | The WebM master has 1 ms-quantised timestamps. Merging it with a 30 fps background through ffmpeg `overlay` duplicated every third frame at uneven intervals, which reads as judder on device. Decoding the source frames and resampling them in code (premultiplied alpha, 60 fps) removed it. Lesson: verify video output with raw frame-by-frame diffs, not with `tblend`. |
 
 ## 7. Rules for AI agents
 
