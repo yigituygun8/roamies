@@ -20,7 +20,11 @@ export default function RootLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Roamies' }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="onboarding"
+        options={{ headerShown: false, gestureEnabled: false }}
+      />
       <Stack.Screen name="login" options={{ title: 'Login' }} />
       <Stack.Screen name="home" options={{ title: 'Home' }} />
       <Stack.Screen name="trips/new" options={{ title: 'New Trip' }} />

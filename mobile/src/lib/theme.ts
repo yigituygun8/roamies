@@ -9,7 +9,19 @@
  * transparent master, otherwise its square edge becomes visible on screen.
  */
 export const colors = {
+  // Brand essentials
   background: '#080C22',
   accent: '#09E2A1',
+
+  // Surfaces & Containers (cards, pills, chips)
+  surface: '#141A38',
+  surfaceLight: '#1E264E',
+  surfaceSubtle: 'rgba(236, 234, 234, 0.08)',
+
+  // Typography
   text: '#ECEAEA',
+  textMuted: '#8E97B0',
+
+  // Borders & Dividers
+  borderSubtle: 'rgba(236, 234, 234, 0.12)',
 } as const;
