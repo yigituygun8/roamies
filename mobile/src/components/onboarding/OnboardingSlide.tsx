@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 
 type Props = {
   emoji: string;
@@ -15,11 +15,12 @@ type Props = {
  * exactly one page of the horizontal FlatList.
  */
 export function OnboardingSlide({ emoji, title, description, width }: Props) {
+  const theme = useTheme();
   return (
     <View style={[styles.slide, { width }]}>
       <Text style={styles.emoji}>{emoji}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.description}>{description}</Text>
+      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.description, { color: theme.text }]}>{description}</Text>
     </View>
   );
 }
@@ -37,13 +38,11 @@ const styles = StyleSheet.create({
     lineHeight: 96,
   },
   title: {
-    color: colors.text,
     fontSize: 26,
     fontWeight: '700',
     textAlign: 'center',
   },
   description: {
-    color: colors.text,
     fontSize: 16,
     textAlign: 'center',
     opacity: 0.7,

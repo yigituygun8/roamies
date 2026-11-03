@@ -8,20 +8,48 @@
  * If you change it, the splash video has to be re-composited from the
  * transparent master, otherwise its square edge becomes visible on screen.
  */
-export const colors = {
+export const lightMode = {
   // Brand essentials
-  background: '#080C22',
+  background: '#e6f0ed',
   accent: '#09E2A1',
 
   // Surfaces & Containers (cards, pills, chips)
-  surface: '#141A38',
-  surfaceLight: '#1E264E',
-  surfaceSubtle: 'rgba(236, 234, 234, 0.08)',
+  surface: '#FFFFFF',
+  surfaceLight: '#F9FAFB',
+  surfaceSubtle: 'rgba(0, 0, 0, 0.04)',
 
   // Typography
-  text: '#ECEAEA',
+  text: '#161B29',
+  textMuted: '#6B7280',
+
+  // Borders & Dividers
+  borderSubtle: 'rgba(0, 0, 0, 0.08)',
+} as const;
+
+export const darkMode = {
+  // Brand essentials
+  background: '#0B0E17',
+  accent: '#09E2A1',
+
+  // Surfaces & Containers
+  surface: '#161B29',
+  surfaceLight: '#1F263A',
+  surfaceSubtle: 'rgba(255, 255, 255, 0.05)',
+
+  // Typography
+  text: '#F0F0F0',
   textMuted: '#8E97B0',
 
   // Borders & Dividers
-  borderSubtle: 'rgba(236, 234, 234, 0.12)',
+  borderSubtle: 'rgba(255, 255, 255, 0.1)',
 } as const;
+
+
+
+import { useColorScheme } from 'react-native';
+
+export const useTheme = () => {
+  const scheme = useColorScheme();
+  // Si el sistema está en oscuro, devuelve darkMode, de lo contrario lightMode
+  return scheme === 'dark' ? darkMode : lightMode;
+};

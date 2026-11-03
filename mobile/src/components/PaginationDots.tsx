@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 
 type Props = {
   count: number;
@@ -13,6 +13,7 @@ type Props = {
  * accent colour and is slightly wider to give a pill shape.
  */
 export function PaginationDots({ count, activeIndex, onDotPress }: Props) {
+  const theme = useTheme();
   return (
     <View style={styles.row}>
       {Array.from({ length: count }, (_, i) => (
@@ -24,7 +25,7 @@ export function PaginationDots({ count, activeIndex, onDotPress }: Props) {
           hitSlop={10} // Increase the touch target size for easier tapping
         >
           <View
-            style={[styles.dot, i === activeIndex ? styles.dotActive : styles.dotInactive]}
+            style={[styles.dot, i === activeIndex ? styles.dotActive : styles.dotInactive, {backgroundColor: theme.accent}]}
           />
         </Pressable>
       ))}
@@ -44,11 +45,9 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 20,
-    backgroundColor: colors.accent,
   },
   dotInactive: {
     width: 8,
-    backgroundColor: colors.text,
     opacity: 0.3,
   },
 });
