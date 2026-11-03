@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 
 // Keep the native splash on screen until the first frame of the app is ready,
 // so the user never sees a flash of an empty screen.
@@ -10,6 +10,8 @@ SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 300, fade: true });
 
 export default function RootLayout() {
+  const theme = useTheme();
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
@@ -17,7 +19,7 @@ export default function RootLayout() {
   return (
     <Stack
       screenOptions={{
-        contentStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: theme.background },
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />

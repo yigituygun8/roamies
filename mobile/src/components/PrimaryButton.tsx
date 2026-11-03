@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 
 type Props = {
   label: string;
@@ -13,21 +13,21 @@ type Props = {
  * Started, etc.). Reusable across screens.
  */
 export function PrimaryButton({ label, onPress, accessibilityLabel }: Props) {
+  const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+      style={({ pressed }) => [styles.button, {backgroundColor: theme.accent}, pressed && styles.buttonPressed]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, {color: theme.text}]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: colors.accent,
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 14,
@@ -39,7 +39,6 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   label: {
-    color: colors.background,
     fontSize: 17,
     fontWeight: '700',
   },

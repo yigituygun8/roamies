@@ -11,7 +11,7 @@ import type { ListViewToken as ViewToken } from '@react-native/virtualized-lists
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 import { markOnboardingSeen } from '@/lib/onboarding';
 import { OnboardingSlide } from '@/components/onboarding/OnboardingSlide';
 import { PaginationDots } from '@/components/PaginationDots';
@@ -51,6 +51,7 @@ const SLIDES: Slide[] = [
   },
 ];
 
+
 // Defined outside the component — never recreated, never accessed as
 // ref.current during render (satisfies react-hooks/refs rule).
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 50 } as const;
@@ -71,6 +72,7 @@ const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 50 } as const;
  * the user cannot swipe back to this screen.
  */
 export default function OnboardingScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -118,18 +120,18 @@ export default function OnboardingScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       {/* Skip button — hidden on the last slide */}
       <View style={styles.skipRow}>
         {!isLast && (
           <Pressable
             onPress={finish}
-            style={({ pressed }) => [styles.skipPill, pressed && styles.skipPillPressed]}
+            style={({ pressed }) => [styles.skipPill, { backgroundColor: theme.surfaceSubtle, borrderColor: theme.borderSubtle }, pressed && styles.skipPillPressed, { backgroundColor: theme.surfaceLight }]}
             accessibilityRole="button"
             accessibilityLabel="Skip onboarding"
             hitSlop={8}
           >
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={[styles.skipText, { color: theme.text }]}>Skip</Text>
           </Pressable>
         )}
       </View>
@@ -175,7 +177,6 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
     alignItems: 'center',
   },
   skipRow: {
@@ -187,19 +188,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   skipPill: {
-    backgroundColor: colors.surfaceSubtle,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 20,
   },
   skipPillPressed: {
-    backgroundColor: colors.surfaceLight,
     opacity: 0.8,
   },
   skipText: {
-    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.3,

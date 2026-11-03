@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 import { hasSeenOnboarding } from '@/lib/onboarding';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * ready (fonts, Supabase session), so the intro time is not wasted time.
  */
 export default function IndexScreen() {
+  const theme = useTheme();
   const router = useRouter();
   const hasNavigated = useRef(false);
 
@@ -50,7 +51,7 @@ export default function IndexScreen() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <VideoView
         player={player}
         style={styles.video}
@@ -72,7 +73,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: colors.background,
   },
   video: {
     width: '100%',
