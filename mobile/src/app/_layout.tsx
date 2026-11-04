@@ -27,8 +27,9 @@ export default function RootLayout() {
         name="onboarding"
         options={{ headerShown: false, gestureEnabled: false }}
       />
-      <Stack.Screen name="login" options={{ title: 'Login' }} />
-      <Stack.Screen name="home" options={{ title: 'Home' }} />
+      <Stack.Screen name="login" options={{ title: 'Login' , headerShown: false }} />
+      <Stack.Screen name="register" options={{ title: 'Register' , headerShown: false }} />
+      <Stack.Screen name="home" options={{ title: 'Home', headerShown: false }} />
       <Stack.Screen name="trips/new" options={{ title: 'New Trip' }} />
       <Stack.Screen name="trips/[id]/lobby" options={{ title: 'Trip Lobby' }} />
     </Stack>

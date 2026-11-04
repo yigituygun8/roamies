@@ -126,7 +126,7 @@ export default function OnboardingScreen() {
         {!isLast && (
           <Pressable
             onPress={finish}
-            style={({ pressed }) => [styles.skipPill, { backgroundColor: theme.surfaceSubtle, borrderColor: theme.borderSubtle }, pressed && styles.skipPillPressed, { backgroundColor: theme.surfaceLight }]}
+            style={({ pressed }) => [styles.skipPill, { backgroundColor: theme.surfaceSubtle, borderColor: theme.borderSubtle }, pressed && styles.skipPillPressed]}
             accessibilityRole="button"
             accessibilityLabel="Skip onboarding"
             hitSlop={8}
@@ -165,6 +165,7 @@ export default function OnboardingScreen() {
       <PrimaryButton
         label={isLast ? 'Get Started' : 'Next'}
         onPress={goNext}
+        marginBottom={35}
       />
     </View>
   );

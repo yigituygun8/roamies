@@ -28,7 +28,7 @@ export const lightMode = {
 
 export const darkMode = {
   // Brand essentials
-  background: '#0B0E17',
+  background: '#080C22',
   accent: '#09E2A1',
 
   // Surfaces & Containers
