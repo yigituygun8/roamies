@@ -165,6 +165,7 @@ export default function OnboardingScreen() {
       <PrimaryButton
         label={isLast ? 'Get Started' : 'Next'}
         onPress={goNext}
+        marginBottom={35}
       />
     </View>
   );

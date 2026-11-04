@@ -5,6 +5,7 @@ import { useTheme } from '@/lib/theme';
 type Props = {
   label: string;
   onPress: () => void;
+  marginBottom?: number;
   accessibilityLabel?: string;
 };
 
@@ -12,12 +13,12 @@ type Props = {
  * Full-width accent-coloured button used for primary actions (Next, Get
  * Started, etc.). Reusable across screens.
  */
-export function PrimaryButton({ label, onPress, accessibilityLabel }: Props) {
+export function PrimaryButton({ label, onPress, marginBottom = 5, accessibilityLabel }: Props) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, {backgroundColor: theme.accent}, pressed && styles.buttonPressed]}
+      style={({ pressed }) => [styles.button, {backgroundColor: theme.accent, marginBottom: marginBottom}, pressed && styles.buttonPressed]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
     >
@@ -31,7 +32,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 14,
-    marginBottom: 32,
     minWidth: 200,
     alignItems: 'center',
   },
