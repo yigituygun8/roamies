@@ -6,20 +6,19 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 
 import { useTheme } from '@/lib/theme';
 import { hasSeenOnboarding } from '@/lib/onboarding';
+import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Splash / intro screen.
  *
- * Plays the brand animation once (5 s, no loop) and then navigates to
- * onboarding (first launch) or login (returning user). The animation ends on
- * a held logo frame, so leaving on `playToEnd` keeps the transition seamless.
+ * Plays the brand animation once (5 s, no loop) and then navigates to home for a
+ * signed-in user, or onboarding (first launch) / welcome (returning user)
+ * otherwise. The animation ends on a held logo frame, so leaving on `playToEnd`
+ * keeps the transition seamless.
  *
- * `hasNavigated` is set to true before the async flag read so that a
- * simultaneous `playToEnd` + tap cannot trigger two navigations.
- *
- * Later, the gate for leaving this screen will also wait for the app to be
- * ready (fonts, Supabase session), so the intro time is not wasted time.
+ * `hasNavigated` is set before the async reads so that a simultaneous
+ * `playToEnd` + tap cannot trigger two navigations.
  */
 export default function IndexScreen() {
   const theme = useTheme();
@@ -33,12 +32,20 @@ export default function IndexScreen() {
   });
 
   const goNext = useCallback(async () => {
-    await AsyncStorage.removeItem('hasSeenOnboarding'); // TODO: remove this line after testing. This is for testing purposes only, to reset the onboarding flag on each app launch.
-    
     if (hasNavigated.current) return;
     hasNavigated.current = true;
+
+    const { data } = await supabase.auth.getSession();
+    if (data.session) {
+      console.log('Redirecting to home');
+      router.replace('/home');
+      return;
+    }
+
+    await AsyncStorage.removeItem('hasSeenOnboarding'); // Remove this line to keep the onboarding flag persistent
     const seen = await hasSeenOnboarding();
-    router.replace(seen ? '/login' : '/onboarding');
+    console.log('hasSeenOnboarding', seen);
+    router.replace(seen ? '/welcome' : '/onboarding');
   }, [router]);
 
   useEventListener(player, 'playToEnd', goNext);

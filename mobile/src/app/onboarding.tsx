@@ -1,21 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import type { ListViewToken as ViewToken } from '@react-native/virtualized-lists';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTheme } from '@/lib/theme';
 import { markOnboardingSeen } from '@/lib/onboarding';
+import { onPhoto } from '@/lib/theme';
 import { OnboardingSlide } from '@/components/onboarding/OnboardingSlide';
-import { PaginationDots } from '@/components/PaginationDots';
-import { PrimaryButton } from '@/components/PrimaryButton';
+import { PaginationDots } from '@/components/onboarding/PaginationDots';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 
 // ---------------------------------------------------------------------------
 // Slide data
@@ -23,7 +17,9 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 
 type Slide = {
   id: string;
-  emoji: string;
+  image: number;
+  icon: 'compass-outline' | 'swap-horizontal' | 'sparkles-outline';
+  eyebrow: string;
   title: string;
   description: string;
 };
@@ -31,26 +27,30 @@ type Slide = {
 const SLIDES: Slide[] = [
   {
     id: '1',
-    emoji: '🧭',
-    title: 'Plan trips together',
-    description: 'Create a trip and invite your friends in seconds.',
+    image: require('@/assets/images/onboarding/plan.jpg'),
+    icon: 'compass-outline',
+    eyebrow: 'Trip planning, sorted',
+    title: 'PLAN IT\nTOGETHER.',
+    description: 'Create a trip, invite your friends and agree on a city in seconds.',
   },
   {
     id: '2',
-    emoji: '👈👉',
-    title: 'Swipe on places',
-    description:
-      'Say yes or no to sights, food and activities in your destination.',
+    image: require('@/assets/images/onboarding/swipe.jpg'),
+    icon: 'swap-horizontal',
+    eyebrow: 'The fun part',
+    title: 'SWIPE THE\nCITY.',
+    description: 'Yes or no on sights, food and activities. Everyone gets a say, no arguing.',
   },
   {
     id: '3',
-    emoji: '🗺️',
-    title: 'Get a fair plan',
+    image: require('@/assets/images/onboarding/fair.jpg'),
+    icon: 'sparkles-outline',
+    eyebrow: 'Nobody left out',
+    title: 'ONE PLAN\nFOR ALL.',
     description:
-      "We combine everyone's votes into one route that works for the whole group.",
+      'Our fairness algorithm turns every vote into a route the whole group can live with.',
   },
 ];
-
 
 // Defined outside the component — never recreated, never accessed as
 // ref.current during render (satisfies react-hooks/refs rule).
@@ -63,23 +63,26 @@ const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 50 } as const;
 /**
  * First-launch onboarding screen.
  *
- * Shows three slides in a horizontal FlatList (pagingEnabled). The user can
- * swipe or tap Next / Get Started to advance. Skip is shown on the top-right
- * on all slides except the last one.
+ * Shows three full-bleed photo slides in a horizontal FlatList (pagingEnabled)
+ * with the dots and the Continue button floating on top of the photo. Swipe,
+ * dot or button all advance the list; on the last slide the button becomes
+ * Get Started.
  *
  * Both Skip and Get Started call `finish()`, which persists the
- * `hasSeenOnboarding` flag and navigates to /login with router.replace so
- * the user cannot swipe back to this screen.
+ * `hasSeenOnboarding` flag and replaces the route with /welcome, so the user
+ * cannot swipe back to this screen.
  */
 export default function OnboardingScreen() {
-  const theme = useTheme();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<FlatList<Slide>>(null);
 
   const isLast = activeIndex === SLIDES.length - 1;
+
+  // Space reserved at the bottom of every slide for the dots and the button.
+  const bottomSpace = insets.bottom + 132;
 
   // getItemLayout lets scrollToIndex work without a layout-measurement delay.
   const getItemLayout = useCallback(
@@ -104,7 +107,7 @@ export default function OnboardingScreen() {
   // Persist the flag and navigate away — used by both Skip and Get Started.
   const finish = useCallback(async () => {
     await markOnboardingSeen();
-    router.replace('/login');
+    router.replace('/welcome');
   }, [router]);
 
   const goNext = useCallback(() => {
@@ -120,21 +123,8 @@ export default function OnboardingScreen() {
   }, []);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {/* Skip button — hidden on the last slide */}
-      <View style={styles.skipRow}>
-        {!isLast && (
-          <Pressable
-            onPress={finish}
-            style={({ pressed }) => [styles.skipPill, { backgroundColor: theme.surfaceSubtle, borderColor: theme.borderSubtle }, pressed && styles.skipPillPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Skip onboarding"
-            hitSlop={8}
-          >
-            <Text style={[styles.skipText, { color: theme.text }]}>Skip</Text>
-          </Pressable>
-        )}
-      </View>
+    <View style={styles.container}>
+      <StatusBar style="light" />
 
       {/* Slides */}
       <FlatList
@@ -143,10 +133,14 @@ export default function OnboardingScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <OnboardingSlide
-            emoji={item.emoji}
+            image={item.image}
+            icon={item.icon}
+            eyebrow={item.eyebrow}
             title={item.title}
             description={item.description}
             width={width}
+            height={height}
+            bottomSpace={bottomSpace}
           />
         )}
         horizontal
@@ -155,18 +149,43 @@ export default function OnboardingScreen() {
         getItemLayout={getItemLayout}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={VIEWABILITY_CONFIG}
-        style={styles.list}
+        style={StyleSheet.absoluteFill}
       />
 
-      {/* Dot indicators */}
-      <PaginationDots count={SLIDES.length} activeIndex={activeIndex} onDotPress={goToSlide} />
+      {/* Skip button — hidden on the last slide, which has Get Started */}
+      <View pointerEvents="box-none" style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        {!isLast && (
+          <Pressable
+            onPress={finish}
+            style={({ pressed }) => [styles.skipPill, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Skip onboarding"
+            hitSlop={8}
+          >
+            <Text style={styles.skipText}>Skip</Text>
+          </Pressable>
+        )}
+      </View>
 
-      {/* Next / Get Started button */}
-      <PrimaryButton
-        label={isLast ? 'Get Started' : 'Next'}
-        onPress={goNext}
-        marginBottom={35}
-      />
+      {/* Dots + primary action, floating over the photo */}
+      <View
+        pointerEvents="box-none"
+        style={[styles.bottomBar, { paddingBottom: insets.bottom + 20 }]}
+      >
+        <PaginationDots
+          count={SLIDES.length}
+          activeIndex={activeIndex}
+          onDotPress={goToSlide}
+          variant="onPhoto"
+        />
+        <PrimaryButton
+          label={isLast ? 'Get Started' : 'Continue'}
+          onPress={goNext}
+          variant="light"
+          fullWidth
+          marginBottom={0}
+        />
+      </View>
     </View>
   );
 }
@@ -178,31 +197,39 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
+    backgroundColor: onPhoto.ink,
   },
-  skipRow: {
-    width: '100%',
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
     alignItems: 'flex-end',
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 4,
-    minHeight: 44,
   },
   skipPill: {
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
     borderRadius: 20,
-  },
-  skipPillPressed: {
-    opacity: 0.8,
+    backgroundColor: onPhoto.glassFill,
+    borderWidth: 1,
+    borderColor: onPhoto.glassBorder,
   },
   skipText: {
+    color: onPhoto.text,
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-  list: {
-    flex: 1,
+  pressed: {
+    opacity: 0.75,
+  },
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 24,
+    alignItems: 'center',
   },
 });

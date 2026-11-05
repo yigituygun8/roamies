@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { Ionicons } from '@expo/vector-icons'; // Icon library included with Expo
 
@@ -32,7 +32,7 @@ export default function HomeScreen() {
             // Cross-platform shadows to make it float
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: theme.background === '#0B0E17' ? 0.3 : 0.1, // Darker shadow for dark mode
+            shadowOpacity: theme.background === '#080C22' ? 0.3 : 0.1, // Darker shadow for dark mode
             shadowRadius: 16,
             elevation: 10,
             marginBottom: 30,
