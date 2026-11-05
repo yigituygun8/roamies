@@ -4,10 +4,15 @@ Strategy: least misery. A member's satisfaction = (liked places in the plan) / (
 Places are added one at a time; each time we add the place that makes the LEAST happy member
 as happy as possible, so nobody is left out.
 
+When two places lift the least happy member equally, a tie-breaker looks at the whole group:
+1. more total happiness        (prefer the place that makes the group happier overall)
+2. fewer members still at 0%   (prefer the place that leaves fewer people with nothing)
+3. more net votes, 4. more yes votes, 5. fewer no votes, 6. alphabetical order.
+
 The file has four small parts (read top to bottom):
 1. VoteTable          - who said yes / no to each place.
 2. Measuring          - how happy each member is with a plan.
-3. Choosing           - the least misery loop, and the plain majority plan we compare against.
+3. Choosing           - the least misery loop with its tie-breakers, and the plain majority plan.
 4. Result             - the chosen places, with who each one helped.
 """
 from __future__ import annotations
@@ -95,13 +100,19 @@ def least_misery_plan(table: VoteTable, k: int) -> list[str]:
 
 
 def _ranking(table: VoteTable, plan: set[str], place: str) -> tuple:
-    """What max() compares, in order:
-    1. how happy the least happy member would be with this place added (the least misery rule),
-    2. then more net votes, 3. more yes votes, 4. fewer no votes.
+    """What max() compares, in order (higher is better):
+    1. happiness of the least happy member with this place added (the least misery rule),
+    2. more total happiness of the whole group,
+    3. fewer members still at 0%  -> stored as a negative so that bigger is better,
+    4. more net votes, 5. more yes votes, 6. fewer no votes.
     If everything is equal, max() keeps the first place in the list, and the list is alphabetical,
     so the same votes always give the same plan."""
-    lowest = lowest_satisfaction(table, plan | {place}) or 0.0
-    return (lowest, table.net(place), table.yes_count(place), -table.no_count(place))
+    after = satisfaction(table, plan | {place})
+    lowest = min(after.values()) if after else 0.0
+    stuck_at_zero = sum(1 for value in after.values() if value == 0)
+    total = sum(after.values())
+    return (lowest, total, -stuck_at_zero,
+            table.net(place), table.yes_count(place), -table.no_count(place))
 
 
 def majority_plan(table: VoteTable, k: int) -> list[str]:
