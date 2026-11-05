@@ -45,8 +45,10 @@ roamies/
 │   │   ├── app/                 # Expo Router file-based screens
 │   │   │   ├── _layout.tsx      # Root Stack navigation
 │   │   │   ├── index.tsx        # Splash intro
-│   │   │   ├── onboarding.tsx   # First-launch onboarding (3-slide FlatList)
+│   │   │   ├── onboarding.tsx   # First-launch onboarding (3-slide photo FlatList)
+│   │   │   ├── welcome.tsx      # Photo hero with the Login / Register choice
 │   │   │   ├── login.tsx        # Login
+│   │   │   ├── register.tsx     # Register
 │   │   │   ├── home.tsx         # Home dashboard
 │   │   │   └── trips/
 │   │   │       ├── new.tsx      # Create trip
@@ -183,6 +185,7 @@ Add a row whenever we choose a technology, change direction, or solve a notable 
 | 2026-10-30 | Splash intro video: baked background instead of transparency | iOS only plays transparent video as HEVC with alpha in a `.mov`, which cannot be encoded reliably on Windows. Because the splash background is a single flat colour, the animation is rendered on `#080C22` and shipped as H.264 `.mp4` with `expo-video`. The colour lives in `mobile/src/lib/theme.ts`, `app.json` and the video file, so all three must stay in sync. |
 | 2026-10-30 | Splash video must be re-timed from raw frames, not composited with `overlay` | The WebM master has 1 ms-quantised timestamps. Merging it with a 30 fps background through ffmpeg `overlay` duplicated every third frame at uneven intervals, which reads as judder on device. Decoding the source frames and resampling them in code (premultiplied alpha, 60 fps) removed it. Lesson: verify video output with raw frame-by-frame diffs, not with `tblend`. |
 | 2026-11-01 | Onboarding gated by a local `hasSeenOnboarding` AsyncStorage flag, shown once before login, Skip supported | Onboarding happens before login so the flag cannot live on the user account. Local flag needs no new dependency and no backend change. |
+| 2026-11-04 | Onboarding and login use a photo-first layout: full-bleed photo, copy on a scrim, pill buttons. New `welcome` screen between onboarding and login holds the Login / Register choice. | Matches the shared design reference and keeps the two forms free of auth-method decisions, so OAuth buttons can be added to `welcome` later without touching the forms. Photo scrims are baked into the JPEGs because a runtime band gradient shows stripes on smooth skies, and `expo-linear-gradient` was not worth a new native module plus dev-client rebuild. |
 
 ## 7. Rules for AI agents
 
