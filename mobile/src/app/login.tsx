@@ -1,78 +1,91 @@
 import { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native';
-import { useTheme } from '@/lib/theme';
-import { PrimaryButton } from '@/components/PrimaryButton';
-import { AuthLayout } from '@/components/AuthLayout';
+import { StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
+import { AuthLayout } from '@/components/auth/AuthLayout';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { TextField } from '@/components/ui/TextField';
+
+
 export default function LoginScreen() {
-  const theme = useTheme();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  const inputStyle = [
-    styles.input,
-    {
-      backgroundColor: theme.surfaceLight,
-      color: theme.text,
-      borderColor: theme.borderSubtle,
-    },
-  ];
+  // Empty-field checks only for now. Real validation lands with the Supabase
+  // sign-in call; until then the button still bypasses straight to home.
+  const validateEmail = () => {
+    setErrors((previous) => ({
+      ...previous,
+      email: email.trim() ? undefined : 'Enter your email address.',
+    }));
+  };
+
+  const validatePassword = () => {
+    setErrors((previous) => ({
+      ...previous,
+      password: password ? undefined : 'Enter your password.',
+    }));
+  };
 
   return (
     <AuthLayout
-      title="Welcome Roamie!"
-      subtitle="Log in to discover new places and adventures."
+      title="Welcome back, Roamie."
+      subtitle="Log in to continue planning with your group."
+      showBackButton
     >
-      <TextInput
-        style={inputStyle}
+      <TextField
+        label="Email"
         placeholder="roamie@email.com"
-        placeholderTextColor={theme.textMuted}
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => {
+          setEmail(text);
+          if (text.trim()) setErrors((previous) => ({ ...previous, email: undefined }));
+        }}
+        onBlur={validateEmail}
+        error={errors.email}
         autoCapitalize="none"
         keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
       />
-      <TextInput
-        style={inputStyle}
-        placeholder="Password"
-        placeholderTextColor={theme.textMuted}
+      <TextField
+        label="Password"
+        placeholder="Your password"
         value={password}
-        onChangeText={setPassword}
-        secureTextEntry
+        onChangeText={(text) => {
+          setPassword(text);
+          if (text) setErrors((previous) => ({ ...previous, password: undefined }));
+        }}
+        onBlur={validatePassword}
+        error={errors.password}
+        secure
+        autoComplete="current-password"
+        textContentType="password"
       />
 
-      <PrimaryButton label="Log in" onPress={() => router.replace('/home')} />
+      <View style={styles.actions}>
+        <PrimaryButton label="Log in" fullWidth onPress={() => router.replace('/home')} />
 
-      <View style={styles.dividerContainer}>
-        <View style={[styles.line, { backgroundColor: theme.borderSubtle }]} />
-        <Text style={[styles.dividerText, { color: theme.textMuted }]}>or create an account</Text>
-        <View style={[styles.line, { backgroundColor: theme.borderSubtle }]} />
+        <OAuthButtons variant="outline" />
+
+        <PrimaryButton
+          label="Create an account"
+          icon="person-add-outline"
+          variant="outline"
+          fullWidth
+          onPress={() => router.push('/register')}
+        />
       </View>
-
-      <Pressable
-        style={[styles.oauthButton, { borderColor: theme.accent, borderWidth: 2 }]}
-        onPress={() => router.push('/register')} // Navigate to the register screen
-      >
-        <Text style={[styles.oauthText, { color: theme.text }]}>Register</Text>
-      </Pressable>
     </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  input: {
-    height: 52,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginBottom: 4,
+  actions: {
+    marginTop: 8,
+    gap: 12,
   },
-  dividerContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 12 },
-  line: { flex: 1, height: 1 },
-  dividerText: { paddingHorizontal: 16, fontSize: 14 },
-  oauthButton: { height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  oauthText: { fontSize: 16, fontWeight: '600' },
 });
