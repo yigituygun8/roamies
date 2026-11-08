@@ -10,8 +10,13 @@ import { useTheme } from '@/lib/theme';
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 300, fade: true });
 
-/** Route roots that require a Supabase session. */
-const PROTECTED_ROOTS = ['home', 'trips'];
+/**
+ * Route roots that require a Supabase session.
+ *
+ * Every tab lives at its own root (`/home`, `/activity`, `/chat`, `/profile`),
+ * the `(tabs)` group is stripped from the URL, so each one is listed here.
+ */
+const PROTECTED_ROOTS = ['home', 'activity', 'chat', 'profile', 'trips'];
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -55,8 +60,9 @@ export default function RootLayout() {
       />
       <Stack.Screen name="login" options={{ title: 'Login' , headerShown: false }} />
       <Stack.Screen name="register" options={{ title: 'Register' , headerShown: false }} />
-      <Stack.Screen name="home" options={{ title: 'Home', headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="trips/new" options={{ title: 'New Trip' }} />
+      <Stack.Screen name="trips/join" options={{ title: 'Join a trip' }} />
       <Stack.Screen name="trips/[id]/lobby" options={{ title: 'Trip Lobby' }} />
     </Stack>
   );
