@@ -17,6 +17,8 @@ type Props = {
    */
   variant?: ButtonVariant;
   icon?: ComponentProps<typeof Ionicons>['name'];
+  /** Arrow-on-the-right style labels use `right`; icons before the label use `left`. */
+  iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
   disabled?: boolean;
   /** Shows a spinner and blocks presses while an async action runs. */
@@ -36,6 +38,7 @@ export function PrimaryButton({
   onPress,
   variant = 'accent',
   icon,
+  iconPosition = 'left',
   fullWidth = false,
   disabled = false,
   loading = false,
@@ -94,9 +97,14 @@ export function PrimaryButton({
         {loading ? (
           <ActivityIndicator size="small" color={surface.color} />
         ) : (
-          icon && <Ionicons name={icon} size={19} color={surface.color} />
+          icon && iconPosition === 'left' && (
+            <Ionicons name={icon} size={19} color={surface.color} />
+          )
         )}
         <Text style={[styles.label, { color: surface.color }]}>{label}</Text>
+        {!loading && icon && iconPosition === 'right' ? (
+          <Ionicons name={icon} size={19} color={surface.color} />
+        ) : null}
       </View>
     </Pressable>
   );
