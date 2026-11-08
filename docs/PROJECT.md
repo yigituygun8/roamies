@@ -49,18 +49,37 @@ roamies/
 │   │   │   ├── welcome.tsx      # Photo hero with the Login / Register choice
 │   │   │   ├── login.tsx        # Login
 │   │   │   ├── register.tsx     # Register
-│   │   │   ├── home.tsx         # Home dashboard
+│   │   │   ├── (tabs)/          # Bottom tabs (headless `expo-router/ui`)
+│   │   │   │   ├── _layout.tsx  # Custom bar: Trips · Activity · (+) · Chat · Profile
+│   │   │   │   ├── home.tsx     # Trips tab / home dashboard
+│   │   │   │   ├── activity.tsx # Placeholder
+│   │   │   │   ├── chat.tsx     # Placeholder (future LLM assistant)
+│   │   │   │   └── profile.tsx  # Placeholder
 │   │   │   └── trips/
 │   │   │       ├── new.tsx      # Create trip
+│   │   │       ├── join.tsx     # Placeholder: join with an invite code
 │   │   │       └── [id]/lobby.tsx # Trip voting lobby
-│   │   ├── components/          # Reusable UI (AuthLayout, OAuthButtons, PrimaryButton, TextField)
+│   │   ├── components/          # Reusable UI
+│   │   │   ├── auth/            # AuthLayout, OAuthButtons
+│   │   │   ├── home/            # HomeHeader, NextUpCard, TripCard, TripCover,
+│   │   │   │                    # CreateTripCard, EmptyState, HomeSkeleton
+│   │   │   ├── navigation/      # TabBar (headless tabs, centre + action)
+│   │   │   ├── onboarding/      # OnboardingSlide, PaginationDots
+│   │   │   └── ui/              # AvatarStack, PrimaryButton, PhotoHero, Scrim,
+│   │   │                        # Skeleton, StatusChip, SectionHeader,
+│   │   │                        # InlineBanner, FadeIn, ScreenPlaceholder, TextField
 │   │   ├── lib/
 │   │   │   ├── supabase.ts      # Supabase client (lazy init, AsyncStorage persistence, PKCE)
 │   │   │   ├── oauth.ts         # Google sign-in via Supabase hosted OAuth
 │   │   │   ├── api.ts           # apiFetch helper (attaches Supabase Bearer token)
-│   │   │   └── onboarding.ts    # hasSeenOnboarding flag (AsyncStorage)
+│   │   │   ├── onboarding.ts    # hasSeenOnboarding flag (AsyncStorage)
+│   │   │   ├── theme.ts         # Light/dark tokens and useTheme
+│   │   │   ├── trips.ts         # Mock trips, useTrips, status copy (Supabase later)
+│   │   │   ├── useReducedMotion.ts
+│   │   │   └── useAnimatedValue.ts
 │   │   └── types/
-│   │       └── place.ts         # Place and PlaceCategory definitions
+│   │       ├── place.ts         # Place and PlaceCategory definitions
+│   │       └── trip.ts          # Trip, TripMember, TripStatus (design assumptions)
 │   ├── .env.example
 │   └── tsconfig.json            # Path alias: `@/*` maps to `./src/*`
 └── backend/                     # FastAPI (Python)
@@ -197,6 +216,7 @@ Add a row whenever we choose a technology, change direction, or solve a notable 
 | 2026-11-04 | Onboarding and login use a photo-first layout: full-bleed photo, copy on a scrim, pill buttons. New `welcome` screen between onboarding and login holds the Login / Register choice. | Matches the shared design reference and keeps the two forms free of auth-method decisions, so OAuth buttons can be added to `welcome` later without touching the forms. Photo scrims are baked into the JPEGs because a runtime band gradient shows stripes on smooth skies, and `expo-linear-gradient` was not worth a new native module plus dev-client rebuild. |
 | 2026-11-05 | Auth: Google through Supabase hosted OAuth with PKCE and `expo-web-browser`; app scheme `roamies`, bundle/package `com.roamies.app`. Apple Sign-In deferred. | PKCE keeps tokens out of the redirect URL and needs no new dependency (`expo-web-browser` and `expo-linking` were already installed). Apple Sign-In needs a paid Apple Developer account, so it cannot be built or tested yet. The session is persisted, so the splash now skips onboarding for a signed-in user. |
 | 2026-11-05 | The Supabase client is created lazily (Proxy) instead of at import time | `web.output: "server"` prerenders routes in Node, where `EXPO_PUBLIC_*` values are not inlined. Eager `createClient` made `expo export` throw on every route that imports `lib/supabase.ts`. Lazy init keeps the missing-env error, but only at the first real request. |
+| 2026-11-06 | Home navigation uses the headless tabs from `expo-router/ui` with a custom floating bar; the screen moved to `app/(tabs)/home.tsx` | The stock tab bar cannot express the floating pill with the protruding mint `+` from the mockup. Headless tabs keep routing (URLs, focus, per-tab state, deep links) inside the router and only the bar's appearance is ours. The file stays `home.tsx` instead of `index.tsx` so the URL stays `/home` and does not collide with the splash at `/`. Active tab labels use `accentText` because mint fails contrast as small text on a light surface. |
 
 ## 7. Rules for AI agents
 

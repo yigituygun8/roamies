@@ -1,8 +1,11 @@
 # Home screen — design plan
 
-Status: proposal for review. No app code written yet.
+Status: implemented on `feature/home-screen-initial` with mock trip data. The
+Supabase `trips` / `trip_members` / `votes` tables are not designed yet, so the
+screen reads from `mobile/src/lib/trips.ts`.
 
-Mockup: [`home-mockup.png`](./home-mockup.png) (source: [`home-mockup.html`](./home-mockup.html))
+Mockup: the reference frames were reviewed with the design side and removed from
+the repo; the layout they described is captured below.
 
 The mockup shows three 390 × 844 frames:
 
@@ -117,7 +120,7 @@ more scannable: one emotional hero, then plain cards.
 
 - Touch targets at least 44 × 44; tab bar respects the bottom safe area.
 - Status is always text + icon, not colour alone.
-- Avatars have accessible labels ("Leyla, Mia, Jonas and 2 more").
+- Avatars have accessible labels ("Osman, Mia, Jonas and 2 more").
 - Primary CTA labels describe the result ("Swipe 3 places left", not "Continue").
 - Contrast: mint is used as a fill with dark ink, not as small text on white.
 - Respect reduced motion; no parallax or infinite animation.
@@ -183,10 +186,20 @@ For the mockup, the photos are the existing Unsplash assets under
 - Are dates required when creating a trip, or can they be "TBD"?
 - Does the empty state reuse one of the onboarding photos or get its own?
 
+Settled while building the first version:
+
+- **Join with a code:** the empty state's second CTA and the `/trips/join` route
+  exist; the code form waits for the invites table.
+- **Dates:** optional. A trip can sit in the `no-dates` state.
+- **Empty state photo:** reuses `assets/images/onboarding/plan.jpg`.
+- **Activity scope:** still open; the tab is a placeholder.
+
 ## 12. Next steps
 
-1. Review the mockup with the design-side teammate.
-2. Confirm the 5-slot tab set, the Activity scope and the Chat placeholder.
-3. Build `home.tsx` with mock data using the existing theme and components.
+1. ~~Review the mockup with the design-side teammate.~~ Done.
+2. ~~Confirm the 5-slot tab set, the Activity scope and the Chat placeholder.~~
+   Tab set and Chat placeholder confirmed; Activity scope is still open.
+3. ~~Build `home.tsx` with mock data using the existing theme and components.~~
+   Done in `app/(tabs)/home.tsx`.
 4. Wire Supabase once the trips/members/votes tables are defined.
 
