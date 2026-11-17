@@ -61,7 +61,7 @@ export default function RootLayout() {
       <Stack.Screen name="login" options={{ title: 'Login' , headerShown: false }} />
       <Stack.Screen name="register" options={{ title: 'Register' , headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="trips/new" options={{ title: 'New Trip' }} />
+      <Stack.Screen name="trips/new" options={{ title: 'New Trip', headerShown: false }} />
       <Stack.Screen name="trips/join" options={{ title: 'Join a trip' }} />
       <Stack.Screen name="trips/[id]/lobby" options={{ title: 'Trip Lobby' }} />
     </Stack>
