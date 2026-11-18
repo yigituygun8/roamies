@@ -12,7 +12,7 @@ import { FadeIn } from '@/components/ui/FadeIn';
 import { useTheme } from '@/lib/theme';
 
 /**
- * New Trip multi-step wizard screen with Google Places Autocomplete and Date Pickers.
+ * New Trip multi-step
  */
 export default function NewTripScreen() {
   const theme = useTheme();
@@ -31,16 +31,37 @@ export default function NewTripScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
 
-  const [places, setPlaces] = useState('');
-  const [error, setError] = useState('');
+// State for proposed places list (starts with 1 empty box)
+const [places, setPlaces] = useState<string[]>(['']);
+
+// Helper functions for dynamic places
+const handlePlaceChange = (text: string, index: number) => {
+  const updated = [...places];
+  updated[index] = text;
+  setPlaces(updated);
+};
+
+const handleAddPlace = () => {
+  setPlaces([...places, '']);
+};
+
+const handleRemovePlace = (index: number) => {
+  if (places.length > 1) {
+    const updated = places.filter((_, i) => i !== index);
+    setPlaces(updated);
+  } else {
+    setPlaces(['']); // Keeps at least one empty box if it's the last one
+  }
+};  const [error, setError] = useState('');
 
   // Google Places Autocomplete states
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  
 
   const totalSteps = 5;
 
-  // Fetch OpenStreetMap Nominatim suggestions (Free, no API key required)
+  // Fetch OpenStreetMap Nominatim suggestions
   useEffect(() => {
     if (step === 2 && destination.trim().length > 2) {
       const timer = setTimeout(async () => {
@@ -51,7 +72,7 @@ export default function NewTripScreen() {
             {
               headers: {
                 // Nominatim policy requires a custom User-Agent identifying your app
-                'User-Agent': 'RoamiesMobileApp/1.0',
+                'User-Agent': 'Roamies/1.0',
                 'Accept-Language': 'en', // Ensures results are returned in English
               },
             }
@@ -89,7 +110,7 @@ export default function NewTripScreen() {
     } else {
       setStep(6); // Loading screen step
       setTimeout(() => {
-        router.replace('/home');
+        router.replace('/trips/join'); 
       }, 2500);
     }
   };
@@ -166,7 +187,7 @@ export default function NewTripScreen() {
                 </Text>
                 <TextField
                   label="Trip Name"
-                  placeholder="e.g., Summer in Tokyo"
+                  placeholder="e.g., Winter in Vienna"
                   value={tripName}
                   onChangeText={(text) => {
                     setTripName(text);
@@ -300,21 +321,59 @@ export default function NewTripScreen() {
             )}
 
             {/* Step 5: Highlights / Proposed Places */}
-            {step === 5 && (
-              <View style={styles.stepContent}>
-                <Text style={[styles.eyebrow, { color: theme.accent }]}>Highlights</Text>
-                <Text style={[styles.title, { color: theme.text }]}>Places you want to visit</Text>
-                <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-                  List a few attractions or locations you propose for the group. (Optional)
-                </Text>
-                <TextField
-                  label="Proposed Places"
-                  placeholder="e.g., Shibuya Crossing, Senso-ji Temple"
-                  value={places}
-                  onChangeText={setPlaces}
-                />
-              </View>
-            )}
+{step === 5 && (
+  <View style={styles.stepContent}>
+    <Text style={[styles.eyebrow, { color: theme.accent }]}>Highlights</Text>
+    <Text style={[styles.title, { color: theme.text }]}>Places you want to visit</Text>
+    <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+      List a few attractions or locations you propose for the group. (Optional)
+    </Text>
+    
+    <View style={styles.placesListContainer}>
+      {places.map((place, index) => (
+        <View key={index} style={styles.placeRow}>
+          <View style={{ flex: 1 }}>
+            <TextField
+              label={`Place ${index + 1}`}
+              placeholder="e.g., St. Stephen's Cathedral"
+              value={place}
+              onChangeText={(text) => handlePlaceChange(text, index)}
+            />
+          </View>
+
+          {/* Delete button (only shows if there's more than one input) */}
+          {places.length > 1 && (
+            <Pressable
+              style={[styles.removeButton, { borderColor: theme.borderSubtle }]}
+              onPress={() => handleRemovePlace(index)}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove place ${index + 1}`}
+            >
+              <Ionicons name="trash-outline" size={18} color={theme.textMuted} />
+            </Pressable>
+          )}
+        </View>
+      ))}
+
+      {/* Button to add another place box */}
+      <Pressable
+        style={[
+          styles.addButton,
+          {
+            backgroundColor: theme.surfaceLight ?? '#161B29',
+            borderColor: theme.borderSubtle,
+          },
+        ]}
+        onPress={handleAddPlace}
+        accessibilityRole="button"
+        accessibilityLabel="Add another place"
+      >
+        <Ionicons name="add" size={20} color={theme.accent} />
+        <Text style={[styles.addButtonText, { color: theme.accent }]}>Add another place</Text>
+      </Pressable>
+    </View>
+  </View>
+)}
           </View>
         </FadeIn>
 
@@ -438,5 +497,37 @@ const styles = StyleSheet.create({
   loadingSubtitle: {
     fontSize: 15,
     textAlign: 'center',
+  },
+
+  placesListContainer: {
+    gap: 12,
+  },
+  placeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  removeButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2, // Aligns nicely with the text input field base
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 4,
+  },
+  addButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
