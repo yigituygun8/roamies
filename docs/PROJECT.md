@@ -130,11 +130,42 @@ roamies/
 - Images need a recorded source and license in `imageCredit`.
 - Place data from OpenStreetMap must credit "© OpenStreetMap contributors".
 
-### Supabase tables (draft)
 
-`places`: `id text primary key`, `city`, `name`, `category`, `lat`, `lng`, `opening_hours`, `description`, `image_url`, `image_credit`. RLS: any signed-in user can read, nobody can write from the app.
+### Supabase tables (to be updated)
 
-Still to design in separate issues: `trips`, `trip_members`, `votes`, and user-added places (see open questions).
+All columns are required (`NOT NULL`) unless explicitly marked nullable.
+See migrations in `supabase/migrations`.
+
+`users`: Supabase already provides `auth.users` for login accounts. We do not create another login table or store passwords ourselves. Each user has an `id uuid primary key`, which other tables reference.
+  Auth: use Supabase Auth for signup and login. FastAPI verifies the user's access token to obtain their user ID.
+  Access: `auth.users` is not exposed through the normal table API. Use the Auth SDK to retrieve authenticated user information.
+  Optional: a separate `profiles` table can be added later for display names or avatars.
+
+`places`: `id text primary key`, `city text`, `name text`, `category text`, `lat double precision`, `lng double precision`, `opening_hours text nullable`, `description text nullable`, `image_url text nullable`, `image_credit text nullable`.
+  RLS: any signed-in user can read; nobody can insert, update, or delete from the app.
+  Open question: should we add `country text` to `places` and `trips` to record which country the city is in?
+
+`trips`: `id uuid primary key`, `name text`, `city text`, `created_by uuid references auth.users(id)`, `created_at timestamptz default now()`.
+  Purpose: stores each trip and identifies its creator.
+  RLS: signed-in users can create trips with themselves as the creator. The creator and members can read, only the creator can update or delete.
+
+`trip_members`: `trip_id uuid references trips(id)`, `user_id uuid references auth.users(id)`, `joined_at timestamptz default now()`, `primary key (trip_id, user_id)`.
+  Purpose: links users to trips and prevents duplicate membership.
+  RLS: the creator and members can read their trip's membership list. Initially, only the creator can add members. Members can leave, the creator can remove members. Joining by invitation or code still needs designing.
+  **The trip creator must also have a row in `trip members` so they can vote. Creating a trip should also create this membership row.**
+
+`votes`: `trip_id uuid`, `user_id uuid`, `place_id text references places(id)`, `liked boolean`, `created_at timestamptz default now()`, `primary key (trip_id, user_id, place_id)`, `foreign key (trip_id, user_id) references trip_members(trip_id, user_id)`.
+  Purpose: stores one yes/no vote per member, place, and trip. `true` means yes; `false` means no; no row means not voted.
+  RLS: members can read and change only their own votes. The fairness backend needs authorized access to the group's votes after verifying the requesting user's trip membership.
+
+All app tables require RLS and explicit table permissions. These are intended access rules; they still need implementing and testing. Backend requests using a secret/service-role key bypass RLS and require their own authorization checks.
+
+Still to design in separate issues: user-added places (see open questions).
+
+### Database validation
+Manually tested through the Python Supabase client with two test users:
+trip creation, automatic creator membership, trip updates, place reads, vote creation and updates, membership addition and leaving, restricted access for unrelated users, blocked trip updates by non-creators, and trip deletion with cascading membership and vote cleanup.
+
 
 ### FastAPI endpoints (draft)
 
@@ -169,6 +200,7 @@ Add one section per new endpoint in the same format (request, response, errors).
 - **Supabase setup:** cloud project or local, and how does the whole team share it?
 - **Hosting:** where does FastAPI run for user tests? A phone needs to reach it.
 - **Auth method:** email and password, or guest login with a nickname for easier user testing.
+- **`country` field:** should we add `country text` to `places` and `trips` to record which country the city is in?
 
 ## 6. Decision log
 
