@@ -1,33 +1,67 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, View, Text, Pressable, useColorScheme, Modal } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  Switch,
+  Share,
+  useColorScheme,
+  Modal,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageProps } from 'expo-image';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import QRCode from 'react-native-qrcode-svg';
 
 import { FadeIn } from '@/components/ui/FadeIn';
 import { useTabBarSpace } from '@/components/navigation/TabBar';
 import { useTheme } from '@/lib/theme';
+import { setThemeOverride } from '@/lib/theme-override';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const NOTIFICATIONS_KEY = '@roamies/notifications_enabled';
+
+// Placeholder until Supabase auth is wired to this screen.
+// Replace with supabase.auth.getUser() result when auth is connected.
+const PLACEHOLDER_USER_ID = 'demo-placeholder-id';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UserProfile {
   name: string;
   username: string;
   email: string;
   avatar: ImageProps['source'] | null;
+  id: string;
 }
 
-interface CustomModalState {
+interface SignOutModalState {
   visible: boolean;
-  title: string;
-  message: string;
-  isConfirm?: boolean;
   onConfirm?: () => void;
 }
 
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 /**
- * Profile tab — displays user account info, associated QR code,
- * preferences, and sign out options using themed custom modals.
+ * Profile tab — user info, QR identity card, preference toggles, sign out.
+ *
+ * Dark Mode toggle: uses Appearance.setColorScheme() to override the system
+ * theme inside the app. Choice is persisted in AsyncStorage so it survives
+ * restarts. Because every screen reads useTheme() → useColorScheme(), zero
+ * other screens need changing.
+ *
+ * Notifications toggle: UI-only for now (AsyncStorage flag). OS permission +
+ * backend push logic is a future issue.
+ *
+ * QR code: encodes `roamies://user/<user_id>`. The scanning camera lives on
+ * the trip detail screen (trips/[id]/lobby) where the trip context is known,
+ * so the scan unambiguously adds this user to that specific trip.
  */
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -36,54 +70,96 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
 
-  // User profile state
+  // ── User state (placeholder until Supabase auth is wired up) ──────────────
   const [user] = useState<UserProfile>({
     name: 'Julia Yu',
     username: '@juliayu',
     email: 'julia.yu@roamies.app',
     avatar: null,
+    id: PLACEHOLDER_USER_ID,
   });
 
-  // Custom themed modal state
-  const [modalConfig, setModalConfig] = useState<CustomModalState>({
+  // ── Dark mode toggle ───────────────────────────────────────────────────────
+  // Initialise from the current colour scheme (which may already be overridden
+  // by applyPersistedTheme() that ran in _layout.tsx on startup).
+  const [isDarkMode, setIsDarkMode] = useState(scheme === 'dark');
+
+  // Keep the toggle in sync if the system scheme changes externally.
+  useEffect(() => {
+    async function updateDarkMode() {
+      setIsDarkMode(scheme === 'dark');
+    }
+    updateDarkMode();
+  }, [scheme, setIsDarkMode]);
+
+  const handleDarkModeToggle = useCallback((value: boolean) => {
+    setIsDarkMode(value);
+    setThemeOverride(value ? 'dark' : 'light');
+  }, []);
+
+  // ── Notifications toggle ───────────────────────────────────────────────────
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(NOTIFICATIONS_KEY).then((v) => {
+      setNotificationsEnabled(v === 'true');
+    });
+  }, []);
+
+  const handleNotificationsToggle = useCallback((value: boolean) => {
+    setNotificationsEnabled(value);
+    AsyncStorage.setItem(NOTIFICATIONS_KEY, value ? 'true' : 'false');
+  }, []);
+
+  // ── QR bottom sheet ────────────────────────────────────────────────────────
+  const [qrVisible, setQrVisible] = useState(false);
+
+  const openQr = useCallback(() => {
+    setQrVisible(true);
+  }, []);
+
+  const closeQr = useCallback(() => {
+    setQrVisible(false);
+  }, []);
+
+  const qrValue = `roamies://user/${user.id}`;
+
+  const handleShareProfile = useCallback(async () => {
+    try {
+      await Share.share({
+        message: `Join me on Roamies! ${qrValue}`,
+        title: `${user.name} on Roamies`,
+      });
+    } catch {
+      // User dismissed the share sheet — not an error
+    }
+  }, [qrValue, user.name]);
+
+  // ── Sign out modal ─────────────────────────────────────────────────────────
+  const [signOutModal, setSignOutModal] = useState<SignOutModalState>({
     visible: false,
-    title: '',
-    message: '',
-    isConfirm: false,
   });
 
-  // Helper function to generate initials from name (e.g., "Julia Yu" -> "JY")
-  const getInitials = (fullName: string) => {
-    return fullName
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const handleSignOutPress = () => {
-    setModalConfig({
+  const handleSignOutPress = useCallback(() => {
+    setSignOutModal({
       visible: true,
-      title: 'Sign Out',
-      message: 'Are you sure you want to sign out of your account?',
-      isConfirm: true,
       onConfirm: () => {
-        setModalConfig((prev) => ({ ...prev, visible: false }));
-        // TODO: Replace with await supabase.auth.signOut();
+        setSignOutModal({ visible: false });
+        // TODO: replace with await supabase.auth.signOut();
         router.replace('/login');
       },
     });
-  };
+  }, [router]);
 
-  const showInfoModal = (title: string, message: string) => {
-    setModalConfig({
-      visible: true,
-      title,
-      message,
-      isConfirm: false,
-    });
-  };
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const getInitials = (fullName: string) =>
+    fullName
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -96,20 +172,20 @@ export default function ProfileScreen() {
           { paddingTop: insets.top + 16, paddingBottom: tabBarSpace },
         ]}
       >
-        {/* Screen Title */}
+        {/* ── Screen title ── */}
         <FadeIn>
           <View style={styles.headerTitleContainer}>
             <Text style={[styles.screenTitle, { color: theme.text }]}>Profile</Text>
           </View>
         </FadeIn>
 
-        {/* User Info Card with Initials Fallback Circle */}
+        {/* ── User info card ── */}
         <FadeIn delay={60}>
           <View
             style={[
               styles.profileCard,
               {
-                backgroundColor: theme.surfaceLight ?? '#161B29',
+                backgroundColor: theme.surfaceLight,
                 borderColor: theme.borderSubtle,
               },
             ]}
@@ -130,84 +206,104 @@ export default function ProfileScreen() {
           </View>
         </FadeIn>
 
-        {/* QR Code Associated Card */}
+        {/* ── Your Roamie QR card ── */}
         <FadeIn delay={100}>
           <Pressable
             style={[
               styles.qrCard,
               {
-                backgroundColor: theme.surfaceLight ?? '#161B29',
+                backgroundColor: theme.surfaceLight,
                 borderColor: theme.borderSubtle,
               },
             ]}
-            onPress={() => showInfoModal('Your Roamie QR', 'Your personal QR code for quick trip sharing and adding friends.')}
+            onPress={openQr}
+            accessibilityLabel="Show your Roamie QR code"
+            accessibilityRole="button"
           >
             <View style={styles.qrInfo}>
-              <View style={[styles.qrIconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
+              <View style={[styles.qrIconContainer, { backgroundColor: theme.surfaceSubtle }]}>
                 <Ionicons name="qr-code-outline" size={24} color={theme.accent} />
               </View>
               <View>
                 <Text style={[styles.qrTitle, { color: theme.text }]}>Your Roamie QR</Text>
-                <Text style={[styles.qrSubtitle, { color: theme.textMuted }]}>Tap to show card and share profile</Text>
+                <Text style={[styles.qrSubtitle, { color: theme.textMuted }]}>
+                  Tap to show card · others scan to invite you
+                </Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
           </Pressable>
         </FadeIn>
 
-        {/* Settings & Preferences Section */}
+        {/* ── Preferences & Settings ── */}
         <FadeIn delay={140}>
           <View style={styles.section}>
-            <Text style={[styles.sectionHeader, { color: theme.textMuted }]}>Preferences & Settings</Text>
-            
+            <Text style={[styles.sectionHeader, { color: theme.textMuted }]}>
+              Preferences &amp; Settings
+            </Text>
+
             <View
               style={[
                 styles.menuGroup,
                 {
-                  backgroundColor: theme.surfaceLight ?? '#161B29',
+                  backgroundColor: theme.surfaceLight,
                   borderColor: theme.borderSubtle,
                 },
               ]}
             >
-              <MenuItem
+              {/* Account Details — nav row */}
+              <NavRow
                 icon="person-circle-outline"
                 title="Account Details"
                 subtitle="Manage personal info and security"
-                onPress={() => showInfoModal('Account Details', 'Account management options coming soon.')}
+                onPress={() => {
+                  // TODO: navigate to Edit Profile screen when built
+                  // router.push('/profile/edit');
+                }}
                 theme={theme}
               />
+
               <View style={[styles.separator, { backgroundColor: theme.borderSubtle }]} />
-              <MenuItem
-                icon="accessibility-outline"
-                title="Accessibility Settings"
-                subtitle="High contrast, text scaling & haptics"
-                onPress={() => showInfoModal('Accessibility Settings', 'Accessibility options coming soon.')}
+
+              {/* Dark Mode — toggle */}
+              <ToggleRow
+                icon={isDarkMode ? 'moon' : 'moon-outline'}
+                title="Dark Mode"
+                subtitle="Override the system appearance"
+                value={isDarkMode}
+                onValueChange={handleDarkModeToggle}
                 theme={theme}
               />
+
               <View style={[styles.separator, { backgroundColor: theme.borderSubtle }]} />
-              <MenuItem
-                icon="notifications-outline"
+
+              {/* Notifications — toggle */}
+              <ToggleRow
+                icon={notificationsEnabled ? 'notifications' : 'notifications-outline'}
                 title="Notifications"
                 subtitle="Trip invites and group reminders"
-                onPress={() => showInfoModal('Notifications', 'Notification settings coming soon.')}
+                value={notificationsEnabled}
+                onValueChange={handleNotificationsToggle}
                 theme={theme}
               />
             </View>
           </View>
         </FadeIn>
 
-        {/* Sign Out Section */}
+        {/* ── Sign Out ── */}
         <FadeIn delay={180}>
           <View style={styles.signOutSection}>
             <Pressable
               style={[
                 styles.signOutButton,
                 {
-                  backgroundColor: theme.surfaceLight ?? '#161B29',
+                  backgroundColor: theme.surfaceLight,
                   borderColor: theme.borderSubtle,
                 },
               ]}
               onPress={handleSignOutPress}
+              accessibilityLabel="Sign out"
+              accessibilityRole="button"
             >
               <Ionicons name="log-out-outline" size={20} color="#FF5A5F" />
               <Text style={styles.signOutText}>Sign Out</Text>
@@ -216,43 +312,120 @@ export default function ProfileScreen() {
         </FadeIn>
       </ScrollView>
 
-      {/* Themed Custom Modal Popup */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          QR Bottom Sheet
+      ══════════════════════════════════════════════════════════════════════ */}
       <Modal
-        visible={modalConfig.visible}
+        visible={qrVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeQr}
+        statusBarTranslucent
+      >
+        {/* Backdrop — tap to dismiss */}
+        <View style={styles.qrBackdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeQr}
+            accessibilityLabel="Dismiss QR card"
+            accessibilityRole="button"
+          />
+          <View
+            style={[
+              styles.qrSheet,
+              {
+                backgroundColor: theme.surfaceLight,
+                paddingBottom: insets.bottom + 16,
+              },
+            ]}
+          >
+            <Text style={[styles.sheetTitle, { color: theme.text }]}>Your Roamie QR</Text>
+            <Text style={[styles.sheetSubtitle, { color: theme.textMuted }]}>
+              A Roamie in your group scans this to invite you to their trip. You can also share your profile link.
+            </Text>
+
+            {/* QR code */}
+            <View
+              style={[
+                styles.qrContainer,
+                { backgroundColor: '#FFFFFF', borderColor: theme.borderSubtle },
+              ]}
+            >
+              <QRCode
+                value={qrValue}
+                size={200}
+                color="#161B29"
+                backgroundColor="#FFFFFF"
+                quietZone={12}
+              />
+            </View>
+
+            {/* User info below QR */}
+            <Text style={[styles.sheetUserName, { color: theme.text }]}>{user.name}</Text>
+            <Text style={[styles.sheetUserHandle, { color: theme.accent }]}>{user.username}</Text>
+
+            {/* Action button */}
+            <Pressable
+              style={[styles.shareButton, { backgroundColor: theme.accent }]}
+              onPress={handleShareProfile}
+              accessibilityLabel="Share your Roamies profile"
+              accessibilityRole="button"
+            >
+              <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Share Profile</Text>
+            </Pressable>
+
+            {/* Divider + dismiss */}
+            <View style={[styles.dismissDivider, { backgroundColor: theme.borderSubtle }]} />
+            <Pressable
+              style={styles.dismissButton}
+              onPress={closeQr}
+              accessibilityLabel="Dismiss QR card"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.dismissText, { color: theme.textMuted }]}>Dismiss</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          Sign Out Confirmation Modal
+      ══════════════════════════════════════════════════════════════════════ */}
+      <Modal
+        visible={signOutModal.visible}
         transparent
         animationType="fade"
-        onRequestClose={() => setModalConfig((prev) => ({ ...prev, visible: false }))}
+        onRequestClose={() => setSignOutModal({ visible: false })}
       >
         <View style={styles.modalOverlay}>
           <View
             style={[
               styles.modalCard,
               {
-                backgroundColor: theme.surfaceLight ?? '#161B29',
+                backgroundColor: theme.surfaceLight,
                 borderColor: theme.borderSubtle,
               },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: theme.text }]}>{modalConfig.title}</Text>
-            <Text style={[styles.modalMessage, { color: theme.textMuted }]}>{modalConfig.message}</Text>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Sign Out</Text>
+            <Text style={[styles.modalMessage, { color: theme.textMuted }]}>
+              Are you sure you want to sign out of your account?
+            </Text>
 
             <View style={styles.modalActions}>
-              {modalConfig.isConfirm && (
-                <Pressable
-                  style={[styles.modalButton, styles.cancelButton, { borderColor: theme.borderSubtle }]}
-                  onPress={() => setModalConfig((prev) => ({ ...prev, visible: false }))}
-                >
-                  <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
-                </Pressable>
-              )}
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton, { borderColor: theme.borderSubtle }]}
+                onPress={() => setSignOutModal({ visible: false })}
+              >
+                <Text style={[styles.cancelButtonText, { color: theme.text }]}>Cancel</Text>
+              </Pressable>
 
               <Pressable
-                style={[styles.modalButton, { backgroundColor: theme.accent }]}
-                onPress={modalConfig.onConfirm || (() => setModalConfig((prev) => ({ ...prev, visible: false })))}
+                style={[styles.modalButton, { backgroundColor: '#FF5A5F' }]}
+                onPress={signOutModal.onConfirm}
               >
-                <Text style={styles.confirmButtonText}>
-                  {modalConfig.isConfirm ? 'Sign Out' : 'Got it'}
-                </Text>
+                <Text style={styles.confirmButtonText}>Sign Out</Text>
               </Pressable>
             </View>
           </View>
@@ -262,14 +435,22 @@ export default function ProfileScreen() {
   );
 }
 
-/**
- * Reusable menu item row component for settings
- */
-function MenuItem({ icon, title, subtitle, onPress, theme }: any) {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+interface NavRowProps {
+  icon: string;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  theme: ReturnType<typeof useTheme>;
+}
+
+/** Tappable row that navigates somewhere (Account Details etc.). */
+function NavRow({ icon, title, subtitle, onPress, theme }: NavRowProps) {
   return (
-    <Pressable style={styles.menuItem} onPress={onPress}>
-      <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.05)' }]}>
-        <Ionicons name={icon} size={20} color={theme.accent} />
+    <Pressable style={styles.menuItem} onPress={onPress} accessibilityRole="button">
+      <View style={[styles.menuIconContainer, { backgroundColor: theme.surfaceSubtle }]}>
+        <Ionicons name={icon as any} size={20} color={theme.accent} />
       </View>
       <View style={styles.menuTextContent}>
         <Text style={[styles.menuTitle, { color: theme.text }]}>{title}</Text>
@@ -280,6 +461,41 @@ function MenuItem({ icon, title, subtitle, onPress, theme }: any) {
   );
 }
 
+interface ToggleRowProps {
+  icon: string;
+  title: string;
+  subtitle: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  theme: ReturnType<typeof useTheme>;
+}
+
+/** Row with an inline Switch toggle (Dark Mode, Notifications). */
+function ToggleRow({ icon, title, subtitle, value, onValueChange, theme }: ToggleRowProps) {
+  return (
+    <View style={styles.menuItem} accessibilityRole="none">
+      <View style={[styles.menuIconContainer, { backgroundColor: theme.surfaceSubtle }]}>
+        <Ionicons name={icon as any} size={20} color={theme.accent} />
+      </View>
+      <View style={styles.menuTextContent}>
+        <Text style={[styles.menuTitle, { color: theme.text }]}>{title}</Text>
+        <Text style={[styles.menuSubtitle, { color: theme.textMuted }]}>{subtitle}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: theme.borderSubtle, true: theme.accent }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor={theme.borderSubtle}
+        accessibilityLabel={title}
+        accessibilityRole="switch"
+      />
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -287,6 +503,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
   },
+  // ── Header ──
   headerTitleContainer: {
     marginBottom: 20,
   },
@@ -294,6 +511,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
   },
+  // ── Profile card ──
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -337,6 +555,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  // ── QR row card ──
   qrCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,6 +585,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  // ── Settings section ──
   section: {
     marginBottom: 24,
   },
@@ -410,6 +630,7 @@ const styles = StyleSheet.create({
     height: 1,
     marginLeft: 68,
   },
+  // ── Sign out ──
   signOutSection: {
     marginTop: 4,
     marginBottom: 20,
@@ -428,10 +649,81 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Custom Modal Styles matching the app's aesthetic
+  // ── QR Bottom Sheet ──
+  qrBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  qrSheet: {
+    minHeight: 600,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    alignItems: 'center',
+  },
+  sheetTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 6,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  sheetSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 28,
+    paddingHorizontal: 8,
+  },
+  qrContainer: {
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  sheetUserName: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  sheetUserHandle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 24,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 36,
+    borderRadius: 14,
+    marginBottom: 20,
+  },
+  shareButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  dismissDivider: {
+    height: 1,
+    width: '100%',
+    marginBottom: 16,
+  },
+  dismissButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+  },
+  dismissText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  // ── Sign Out Modal ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
