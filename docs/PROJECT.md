@@ -44,18 +44,42 @@ roamies/
 │   ├── src/
 │   │   ├── app/                 # Expo Router file-based screens
 │   │   │   ├── _layout.tsx      # Root Stack navigation
-│   │   │   ├── index.tsx        # Splash / onboarding
+│   │   │   ├── index.tsx        # Splash intro
+│   │   │   ├── onboarding.tsx   # First-launch onboarding (3-slide photo FlatList)
+│   │   │   ├── welcome.tsx      # Photo hero with the Login / Register choice
 │   │   │   ├── login.tsx        # Login
-│   │   │   ├── home.tsx         # Home dashboard
+│   │   │   ├── register.tsx     # Register
+│   │   │   ├── (tabs)/          # Bottom tabs (headless `expo-router/ui`)
+│   │   │   │   ├── _layout.tsx  # Custom bar: Trips · Activity · (+) · Chat · Profile
+│   │   │   │   ├── home.tsx     # Trips tab / home dashboard
+│   │   │   │   ├── activity.tsx # Placeholder
+│   │   │   │   ├── chat.tsx     # Placeholder (future LLM assistant)
+│   │   │   │   └── profile.tsx  # Placeholder
 │   │   │   └── trips/
 │   │   │       ├── new.tsx      # Create trip
+│   │   │       ├── join.tsx     # Placeholder: join with an invite code
 │   │   │       └── [id]/lobby.tsx # Trip voting lobby
-│   │   ├── components/          # Reusable UI components
+│   │   ├── components/          # Reusable UI
+│   │   │   ├── auth/            # AuthLayout, OAuthButtons
+│   │   │   ├── home/            # HomeHeader, NextUpCard, TripCard, TripCover,
+│   │   │   │                    # CreateTripCard, EmptyState, HomeSkeleton
+│   │   │   ├── navigation/      # TabBar (headless tabs, centre + action)
+│   │   │   ├── onboarding/      # OnboardingSlide, PaginationDots
+│   │   │   └── ui/              # AvatarStack, PrimaryButton, PhotoHero, Scrim,
+│   │   │                        # Skeleton, StatusChip, SectionHeader,
+│   │   │                        # InlineBanner, FadeIn, ScreenPlaceholder, TextField
 │   │   ├── lib/
-│   │   │   ├── supabase.ts      # Supabase client (AsyncStorage persistence)
-│   │   │   └── api.ts           # apiFetch helper (attaches Supabase Bearer token)
+│   │   │   ├── supabase.ts      # Supabase client (lazy init, AsyncStorage persistence, PKCE)
+│   │   │   ├── oauth.ts         # Google sign-in via Supabase hosted OAuth
+│   │   │   ├── api.ts           # apiFetch helper (attaches Supabase Bearer token)
+│   │   │   ├── onboarding.ts    # hasSeenOnboarding flag (AsyncStorage)
+│   │   │   ├── theme.ts         # Light/dark tokens and useTheme
+│   │   │   ├── trips.ts         # Mock trips, useTrips, status copy (Supabase later)
+│   │   │   ├── useReducedMotion.ts
+│   │   │   └── useAnimatedValue.ts
 │   │   └── types/
-│   │       └── place.ts         # Place and PlaceCategory definitions
+│   │       ├── place.ts         # Place and PlaceCategory definitions
+│   │       └── trip.ts          # Trip, TripMember, TripStatus (design assumptions)
 │   ├── .env.example
 │   └── tsconfig.json            # Path alias: `@/*` maps to `./src/*`
 └── backend/                     # FastAPI (Python)
@@ -86,10 +110,10 @@ roamies/
 - Place `id` is a readable slug such as `vie-albertina`.
 
 **Git**
-- One issue = one branch = one pull request. Reference the issue with `Closes #N`.
-- No direct pushes to `main`. Every change goes through a PR with at least one review.
-- Small commits, English commit messages.
-- Branch names: `feature/short-name`, `fix/short-name`, `docs/short-name`.
+- Branches: `main` (stable, demo and hand-in versions), `dev` (integration, default branch), short-lived `feature/...`, `fix/...`, `docs/...` created from `dev`.
+- Feature branch → PR into `dev` (squash merge). `dev` → `main` by PR every week or at each milestone (merge commit, not squash).
+- One issue = one branch = one pull request, linked with `Closes #N`.
+- No direct pushes to `main` or `dev`. Every change needs at least one review.
 
 **Secrets**
 - Real values live only in local `.env` files, which are never committed. `.env.example` files list the variable names with empty values.
@@ -191,6 +215,14 @@ trip creation, automatic creator membership, trip updates, place reads, vote cre
 
 Add one section per new endpoint in the same format (request, response, errors).
 
+### Auth
+
+- Email and password screens exist, but the forms are not wired to Supabase yet (separate issue).
+- **Google:** Supabase hosted OAuth with PKCE (`flowType: 'pkce'` + `exchangeCodeForSession`) opened in `expo-web-browser`, so the app can use a browser session without extra native modules. App scheme `roamies://`, bundle/package `com.roamies.app`.
+- **Apple:** not implemented. Sign in with Apple requires a paid Apple Developer account (App ID capability, Services ID and a `.p8` key), so it is deferred until that account exists.
+- The session is persisted in AsyncStorage; the splash sends a signed-in user straight to `/home`, and a sign-out on a protected screen returns to `/welcome`.
+- Google client id/secret live only in the Google Cloud and Supabase dashboards. The app reads only `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
+
 ## 5. Open questions
 
 - **User-added places:** members may add their own activities to a trip, and these should appear in other members' swipes. Where do they live (same `places` table with a trip reference, or a separate table), and who may add?
@@ -210,6 +242,13 @@ Add a row whenever we choose a technology, change direction, or solve a notable 
 |---|---|---|
 | 2026-10-19 | Stack: React Native (Expo), Supabase, FastAPI | Team decision. Supabase covers auth, database, realtime. FastAPI hosts the algorithm and LLM calls. |
 | 2026-10-20 | Expo SDK 58 + `src/` layout + `expo-dev-client` | Default Expo SDK 58 scaffolds under `src/` with `@/*` alias. Adopted development builds (`expo-dev-client`) over Expo Go due to SDK compatibility. Supabase client works with native URL support (no polyfill required). |
+| 2026-10-30 | Splash intro video: baked background instead of transparency | iOS only plays transparent video as HEVC with alpha in a `.mov`, which cannot be encoded reliably on Windows. Because the splash background is a single flat colour, the animation is rendered on `#080C22` and shipped as H.264 `.mp4` with `expo-video`. The colour lives in `mobile/src/lib/theme.ts`, `app.json` and the video file, so all three must stay in sync. |
+| 2026-10-30 | Splash video must be re-timed from raw frames, not composited with `overlay` | The WebM master has 1 ms-quantised timestamps. Merging it with a 30 fps background through ffmpeg `overlay` duplicated every third frame at uneven intervals, which reads as judder on device. Decoding the source frames and resampling them in code (premultiplied alpha, 60 fps) removed it. Lesson: verify video output with raw frame-by-frame diffs, not with `tblend`. |
+| 2026-11-01 | Onboarding gated by a local `hasSeenOnboarding` AsyncStorage flag, shown once before login, Skip supported | Onboarding happens before login so the flag cannot live on the user account. Local flag needs no new dependency and no backend change. |
+| 2026-11-04 | Onboarding and login use a photo-first layout: full-bleed photo, copy on a scrim, pill buttons. New `welcome` screen between onboarding and login holds the Login / Register choice. | Matches the shared design reference and keeps the two forms free of auth-method decisions, so OAuth buttons can be added to `welcome` later without touching the forms. Photo scrims are baked into the JPEGs because a runtime band gradient shows stripes on smooth skies, and `expo-linear-gradient` was not worth a new native module plus dev-client rebuild. |
+| 2026-11-05 | Auth: Google through Supabase hosted OAuth with PKCE and `expo-web-browser`; app scheme `roamies`, bundle/package `com.roamies.app`. Apple Sign-In deferred. | PKCE keeps tokens out of the redirect URL and needs no new dependency (`expo-web-browser` and `expo-linking` were already installed). Apple Sign-In needs a paid Apple Developer account, so it cannot be built or tested yet. The session is persisted, so the splash now skips onboarding for a signed-in user. |
+| 2026-11-05 | The Supabase client is created lazily (Proxy) instead of at import time | `web.output: "server"` prerenders routes in Node, where `EXPO_PUBLIC_*` values are not inlined. Eager `createClient` made `expo export` throw on every route that imports `lib/supabase.ts`. Lazy init keeps the missing-env error, but only at the first real request. |
+| 2026-11-06 | Home navigation uses the headless tabs from `expo-router/ui` with a custom floating bar; the screen moved to `app/(tabs)/home.tsx` | The stock tab bar cannot express the floating pill with the protruding mint `+` from the mockup. Headless tabs keep routing (URLs, focus, per-tab state, deep links) inside the router and only the bar's appearance is ours. The file stays `home.tsx` instead of `index.tsx` so the URL stays `/home` and does not collide with the splash at `/`. Active tab labels use `accentText` because mint fails contrast as small text on a light surface. |
 
 ## 7. Rules for AI agents
 
