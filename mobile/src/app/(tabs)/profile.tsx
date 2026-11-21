@@ -7,6 +7,7 @@ import {
   Pressable,
   Switch,
   Share,
+  Platform,
   useColorScheme,
   Modal,
 } from 'react-native';
@@ -17,10 +18,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageProps } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
+import { BottomSheet, RNHostView } from '@expo/ui';
 
 import { FadeIn } from '@/components/ui/FadeIn';
 import { useTabBarSpace } from '@/components/navigation/TabBar';
-import { useTheme } from '@/lib/theme';
+import { onPhoto, useTheme } from '@/lib/theme';
 import { setThemeOverride } from '@/lib/theme-override';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -315,29 +317,23 @@ export default function ProfileScreen() {
       {/* ══════════════════════════════════════════════════════════════════════
           QR Bottom Sheet
       ══════════════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={qrVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeQr}
-        statusBarTranslucent
+      <BottomSheet
+        isPresented={qrVisible}
+        onDismiss={closeQr}
+        containerColor={theme.surfaceLight}
+        // Android's Material 3 sheet has no content-sized mode: without a snap
+        // point it opens half-height and leaves the Share button below the fold.
+        // 'full' is the only value that skips partial expansion. iOS sizes to
+        // content when snapPoints is omitted, which is the nicer look there.
+        snapPoints={Platform.OS === 'android' ? ['full'] : undefined}
+        contentPadding={{ top: 12, bottom: 16, left: 24, right: 24 }}
       >
-        {/* Backdrop — tap to dismiss */}
-        <View style={styles.qrBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={closeQr}
-            accessibilityLabel="Dismiss QR card"
-            accessibilityRole="button"
-          />
+        {/* Native sheet, RN content: RNHostView measures the RN subtree and
+            reports its height to SwiftUI/Compose. It lays out only its first
+            child, so everything lives in one View. */}
+        <RNHostView matchContents={{ vertical: true }}>
           <View
-            style={[
-              styles.qrSheet,
-              {
-                backgroundColor: theme.surfaceLight,
-                paddingBottom: insets.bottom + 16,
-              },
-            ]}
+            style={[styles.qrSheetContent, Platform.OS === 'android' && styles.qrSheetContentFill]}
           >
             <Text style={[styles.sheetTitle, { color: theme.text }]}>Your Roamie QR</Text>
             <Text style={[styles.sheetSubtitle, { color: theme.textMuted }]}>
@@ -348,7 +344,7 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.qrContainer,
-                { backgroundColor: '#FFFFFF', borderColor: theme.borderSubtle },
+                { backgroundColor: '#FFFFFF', borderColor: theme.borderSubtle, borderWidth: 2 },
               ]}
             >
               <QRCode
@@ -362,7 +358,9 @@ export default function ProfileScreen() {
 
             {/* User info below QR */}
             <Text style={[styles.sheetUserName, { color: theme.text }]}>{user.name}</Text>
-            <Text style={[styles.sheetUserHandle, { color: theme.accent }]}>{user.username}</Text>
+            <Text style={[styles.sheetUserHandle, { color: theme.accentText }]}>
+              {user.username}
+            </Text>
 
             {/* Action button */}
             <Pressable
@@ -371,23 +369,12 @@ export default function ProfileScreen() {
               accessibilityLabel="Share your Roamies profile"
               accessibilityRole="button"
             >
-              <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={18} color={onPhoto.ink} />
               <Text style={styles.shareButtonText}>Share Profile</Text>
             </Pressable>
-
-            {/* Divider + dismiss */}
-            <View style={[styles.dismissDivider, { backgroundColor: theme.borderSubtle }]} />
-            <Pressable
-              style={styles.dismissButton}
-              onPress={closeQr}
-              accessibilityLabel="Dismiss QR card"
-              accessibilityRole="button"
-            >
-              <Text style={[styles.dismissText, { color: theme.textMuted }]}>Dismiss</Text>
-            </Pressable>
           </View>
-        </View>
-      </Modal>
+        </RNHostView>
+      </BottomSheet>
 
       {/* ══════════════════════════════════════════════════════════════════════
           Sign Out Confirmation Modal
@@ -650,24 +637,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // ── QR Bottom Sheet ──
-  qrBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
-  },
-  qrSheet: {
-    minHeight: 600,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 12,
+  qrSheetContent: {
     alignItems: 'center',
+  },
+  /** Android's sheet is always full height, so centre the block instead of
+   *  leaving it pinned under the drag handle. */
+  qrSheetContentFill: {
+    flex: 1,
+    justifyContent: 'center',
   },
   sheetTitle: {
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 6,
-    marginTop: 8,
+    marginTop: 16,
     textAlign: 'center',
   },
   sheetSubtitle: {
@@ -703,22 +686,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   shareButtonText: {
-    color: '#FFFFFF',
+    color: onPhoto.ink,
     fontSize: 15,
     fontWeight: '600',
-  },
-  dismissDivider: {
-    height: 1,
-    width: '100%',
-    marginBottom: 16,
-  },
-  dismissButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-  },
-  dismissText: {
-    fontSize: 15,
-    fontWeight: '500',
   },
   // ── Sign Out Modal ──
   modalOverlay: {
