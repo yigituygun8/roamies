@@ -17,10 +17,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageProps } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import QRCode from 'react-native-qrcode-svg';
+import { BottomSheet, RNHostView } from '@expo/ui';
 
 import { FadeIn } from '@/components/ui/FadeIn';
 import { useTabBarSpace } from '@/components/navigation/TabBar';
-import { useTheme } from '@/lib/theme';
+import { onPhoto, useTheme } from '@/lib/theme';
 import { setThemeOverride } from '@/lib/theme-override';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -315,30 +316,17 @@ export default function ProfileScreen() {
       {/* ══════════════════════════════════════════════════════════════════════
           QR Bottom Sheet
       ══════════════════════════════════════════════════════════════════════ */}
-      <Modal
-        visible={qrVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={closeQr}
-        statusBarTranslucent
+      <BottomSheet
+        isPresented={qrVisible}
+        onDismiss={closeQr}
+        containerColor={theme.surfaceLight}
+        contentPadding={{ top: 12, bottom: 16, left: 24, right: 24 }}
       >
-        {/* Backdrop — tap to dismiss */}
-        <View style={styles.qrBackdrop}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={closeQr}
-            accessibilityLabel="Dismiss QR card"
-            accessibilityRole="button"
-          />
-          <View
-            style={[
-              styles.qrSheet,
-              {
-                backgroundColor: theme.surfaceLight,
-                paddingBottom: insets.bottom + 16,
-              },
-            ]}
-          >
+        {/* Native sheet, RN content: RNHostView measures the RN subtree and
+            reports its height to SwiftUI/Compose. It lays out only its first
+            child, so everything lives in one View. */}
+        <RNHostView matchContents={{ vertical: true }}>
+          <View style={styles.qrSheetContent}>
             <Text style={[styles.sheetTitle, { color: theme.text }]}>Your Roamie QR</Text>
             <Text style={[styles.sheetSubtitle, { color: theme.textMuted }]}>
               A Roamie in your group scans this to invite you to their trip. You can also share your profile link.
@@ -362,7 +350,9 @@ export default function ProfileScreen() {
 
             {/* User info below QR */}
             <Text style={[styles.sheetUserName, { color: theme.text }]}>{user.name}</Text>
-            <Text style={[styles.sheetUserHandle, { color: theme.accent }]}>{user.username}</Text>
+            <Text style={[styles.sheetUserHandle, { color: theme.accentText }]}>
+              {user.username}
+            </Text>
 
             {/* Action button */}
             <Pressable
@@ -371,23 +361,12 @@ export default function ProfileScreen() {
               accessibilityLabel="Share your Roamies profile"
               accessibilityRole="button"
             >
-              <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="share-outline" size={18} color={onPhoto.ink} />
               <Text style={styles.shareButtonText}>Share Profile</Text>
             </Pressable>
-
-            {/* Divider + dismiss */}
-            <View style={[styles.dismissDivider, { backgroundColor: theme.borderSubtle }]} />
-            <Pressable
-              style={styles.dismissButton}
-              onPress={closeQr}
-              accessibilityLabel="Dismiss QR card"
-              accessibilityRole="button"
-            >
-              <Text style={[styles.dismissText, { color: theme.textMuted }]}>Dismiss</Text>
-            </Pressable>
           </View>
-        </View>
-      </Modal>
+        </RNHostView>
+      </BottomSheet>
 
       {/* ══════════════════════════════════════════════════════════════════════
           Sign Out Confirmation Modal
@@ -650,17 +629,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // ── QR Bottom Sheet ──
-  qrBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
-  },
-  qrSheet: {
-    minHeight: 600,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: 12,
+  qrSheetContent: {
     alignItems: 'center',
   },
   sheetTitle: {
@@ -703,22 +672,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   shareButtonText: {
-    color: '#FFFFFF',
+    color: onPhoto.ink,
     fontSize: 15,
     fontWeight: '600',
-  },
-  dismissDivider: {
-    height: 1,
-    width: '100%',
-    marginBottom: 16,
-  },
-  dismissButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-  },
-  dismissText: {
-    fontSize: 15,
-    fontWeight: '500',
   },
   // ── Sign Out Modal ──
   modalOverlay: {
