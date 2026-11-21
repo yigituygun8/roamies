@@ -7,6 +7,7 @@ import {
   Pressable,
   Switch,
   Share,
+  Platform,
   useColorScheme,
   Modal,
 } from 'react-native';
@@ -320,13 +321,20 @@ export default function ProfileScreen() {
         isPresented={qrVisible}
         onDismiss={closeQr}
         containerColor={theme.surfaceLight}
+        // Android's Material 3 sheet has no content-sized mode: without a snap
+        // point it opens half-height and leaves the Share button below the fold.
+        // 'full' is the only value that skips partial expansion. iOS sizes to
+        // content when snapPoints is omitted, which is the nicer look there.
+        snapPoints={Platform.OS === 'android' ? ['full'] : undefined}
         contentPadding={{ top: 12, bottom: 16, left: 24, right: 24 }}
       >
         {/* Native sheet, RN content: RNHostView measures the RN subtree and
             reports its height to SwiftUI/Compose. It lays out only its first
             child, so everything lives in one View. */}
         <RNHostView matchContents={{ vertical: true }}>
-          <View style={styles.qrSheetContent}>
+          <View
+            style={[styles.qrSheetContent, Platform.OS === 'android' && styles.qrSheetContentFill]}
+          >
             <Text style={[styles.sheetTitle, { color: theme.text }]}>Your Roamie QR</Text>
             <Text style={[styles.sheetSubtitle, { color: theme.textMuted }]}>
               A Roamie in your group scans this to invite you to their trip. You can also share your profile link.
@@ -336,7 +344,7 @@ export default function ProfileScreen() {
             <View
               style={[
                 styles.qrContainer,
-                { backgroundColor: '#FFFFFF', borderColor: theme.borderSubtle },
+                { backgroundColor: '#FFFFFF', borderColor: theme.borderSubtle, borderWidth: 2 },
               ]}
             >
               <QRCode
@@ -632,11 +640,17 @@ const styles = StyleSheet.create({
   qrSheetContent: {
     alignItems: 'center',
   },
+  /** Android's sheet is always full height, so centre the block instead of
+   *  leaving it pinned under the drag handle. */
+  qrSheetContentFill: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   sheetTitle: {
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 6,
-    marginTop: 8,
+    marginTop: 16,
     textAlign: 'center',
   },
   sheetSubtitle: {
