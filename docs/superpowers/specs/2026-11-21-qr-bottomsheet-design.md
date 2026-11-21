@@ -45,9 +45,10 @@ Use approach 2 in `mobile/src/app/(tabs)/profile.tsx` only.
 
 - `BottomSheet` gets `isPresented={qrVisible}`, `onDismiss={closeQr}`,
   `containerColor={theme.surfaceLight}`, `contentPadding={{ top: 12, bottom: 16 }}`.
-- No `snapPoints` for now: the sheet auto-sizes to its content. If Android measures the
-  RN subtree badly, the fallback is `snapPoints={[{ fraction: 0.85 }]}` (iOS/web exact,
-  Android snaps to `full`).
+- No `snapPoints` on iOS: the sheet auto-sizes to its content. Android's Material 3
+  sheet has no content-sized mode, and without a snap point it opens half-height with
+  the Share button below the fold, so Android passes `snapPoints={['full']}` (the only
+  value that skips partial expansion) and the content block is centred vertically.
 - All sheet content is wrapped in a single `<View>` which is wrapped in
   `<RNHostView matchContents>` — `RNHostView` lays out only its first child.
 - The bottom "Dismiss" button and its divider are removed; the drag handle, backdrop

@@ -169,7 +169,7 @@ Toggle Dark Mode on the profile tab, reopen the sheet. Expect the sheet chrome t
 
 - [ ] **Step 5: Check a small screen**
 
-If an iPhone SE-class device or simulator is available, confirm nothing is clipped at the bottom. If it is, apply the documented fallback: add `snapPoints={[{ fraction: 0.85 }]}` to `<BottomSheet>` (iOS/web exact; Android snaps to `full`) and repeat Steps 2-4.
+If an iPhone SE-class device or simulator is available, confirm nothing is clipped at the bottom. If it is, add `snapPoints={[{ fraction: 0.85 }]}` to `<BottomSheet>` on iOS only (Android already passes `['full']`; `{fraction}` and `{height}` are iOS/web-only and would re-enable Android's partial expansion) and repeat Steps 2-4.
 
 - [ ] **Step 6: Commit only if Step 5 changed code**
 
