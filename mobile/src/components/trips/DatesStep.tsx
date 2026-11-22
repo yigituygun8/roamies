@@ -61,15 +61,16 @@ export function DatesStep({
             value={startDate}
             disabled={hasNoDates}
             showPicker={showStartPicker}
-            maximumDate={endDate}
             onOpenPicker={() => {
               setShowEndPicker(false);
               setShowStartPicker(true);
             }}
             onClosePicker={() => setShowStartPicker(false)}
             onSelectDate={(selectedDate) => {
-              if (selectedDate <= endDate) {
-                onChangeStartDate(selectedDate);
+              onChangeStartDate(selectedDate);
+              // A trip cannot start after it ends: drag the end date along.
+              if (selectedDate > endDate) {
+                onChangeEndDate(selectedDate);
               }
             }}
           />
@@ -79,15 +80,16 @@ export function DatesStep({
             value={endDate}
             disabled={hasNoDates}
             showPicker={showEndPicker}
-            minimumDate={startDate}
             onOpenPicker={() => {
               setShowStartPicker(false);
               setShowEndPicker(true);
             }}
             onClosePicker={() => setShowEndPicker(false)}
             onSelectDate={(selectedDate) => {
-              if (selectedDate >= startDate) {
-                onChangeEndDate(selectedDate);
+              onChangeEndDate(selectedDate);
+              // A trip cannot end before it starts: drag the start date along.
+              if (selectedDate < startDate) {
+                onChangeStartDate(selectedDate);
               }
             }}
           />
