@@ -30,6 +30,8 @@ type Props = {
   | 'returnKeyType'
   | 'onSubmitEditing'
   | 'editable'
+  | 'multiline'
+  | 'numberOfLines'
 >;
 
 /**
