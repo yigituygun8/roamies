@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
+import { applyPersistedTheme } from '@/lib/theme-override';
 
 // Keep the native splash on screen until the first frame of the app is ready,
 // so the user never sees a flash of an empty screen.
@@ -25,6 +26,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     SplashScreen.hideAsync();
+    // Restore user's saved dark/light preference before first render settles.
+    applyPersistedTheme();
   }, []);
 
   // When the session goes away (sign out, revoked token), passive screens such
