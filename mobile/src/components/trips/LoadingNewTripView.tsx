@@ -21,7 +21,7 @@ export function LoadingNewTripView() {
             Preparing your trip...
           </Text>
           <Text style={[styles.loadingSubtitle, { color: theme.textMuted }]}>
-            Setting everything up for you and your roamies.
+            Setting everything up for you and your Roamies.
           </Text>
         </View>
       </FadeIn>

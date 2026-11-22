@@ -42,10 +42,10 @@ export default function NewTripScreen() {
   const [places, setPlaces] = useState<ProposedPlace[]>([
     { id: 'initial-1', name: '', isMust: false },
   ]);
-  // Final array of valid places, filtering out any empty names
+  // Final array of valid places, filtering out any empty names to send to the backend. This is done here to avoid sending empty names to the backend, but still allowing the user to have an empty input field in the UI.
   const validPlaces = (Array.isArray(places) ? places : [])
   .map((p) => ({
-    id: p?.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: p.id,
     name: String(p?.name ?? '').trim(),
     isMust: Boolean(p?.isMust),
   }))

@@ -91,7 +91,6 @@ export function DestinationStep({
 
     const trimmed = value.trim();
     if (trimmed.length < 2) {
-      setSuggestions([]);
       return;
     }
 
@@ -192,6 +191,10 @@ export function DestinationStep({
         onChangeText={(text) => {
           onChange(text);
           setSelected(false);
+          if (text.trim().length < 2) {
+            setSuggestions([]);
+            setIsSearching(false);
+          }
           if (text.trim()) onClearError();
         }}
         error={error}
