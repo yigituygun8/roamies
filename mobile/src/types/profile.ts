@@ -26,3 +26,19 @@ export interface UpdateProfileInput {
   dietaryPreferences: DietaryPreference[];
   avatarPath?: string | null;
 }
+
+export const TRAVEL_STYLE_META: Record<TravelStyle, { label: string; icon: string }> = {
+  foodie: { label: 'Foodie', icon: '☕' },
+  culture: { label: 'Culture & Sights', icon: '🏛️' },
+  relaxed: { label: 'Relaxed & Chill', icon: '🌿' },
+  active: { label: 'Active & Nature', icon: '🥾' },
+  budget: { label: 'Backpacker', icon: '🎒' },
+};
+
+export const DIETARY_META: Record<DietaryPreference, { label: string; icon: string }> = {
+  none: { label: 'No Restrictions', icon: '🍽️' },
+  vegetarian: { label: 'Vegetarian', icon: '🥗' },
+  vegan: { label: 'Vegan', icon: '🌱' },
+  halal: { label: 'Halal', icon: '🥩' },
+  gluten_free: { label: 'Gluten-Free', icon: '🌾' },
+};
