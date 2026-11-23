@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, type ImageProps } from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +24,9 @@ import { FadeIn } from '@/components/ui/FadeIn';
 import { useTabBarSpace } from '@/components/navigation/TabBar';
 import { onPhoto, useTheme } from '@/lib/theme';
 import { setThemeOverride } from '@/lib/theme-override';
+import { fetchProfile } from '@/lib/profile';
+import { supabase } from '@/lib/supabase';
+import type { TravelStyle, DietaryPreference } from '@/types/profile';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -33,6 +36,22 @@ const NOTIFICATIONS_KEY = '@roamies/notifications_enabled';
 // Replace with supabase.auth.getUser() result when auth is connected.
 const PLACEHOLDER_USER_ID = 'demo-placeholder-id';
 
+const TRAVEL_STYLE_META: Record<TravelStyle, { label: string; icon: string }> = {
+  foodie: { label: 'Foodie', icon: '☕' },
+  culture: { label: 'Culture & Sights', icon: '🏛️' },
+  relaxed: { label: 'Relaxed & Chill', icon: '🌿' },
+  active: { label: 'Active & Nature', icon: '🥾' },
+  budget: { label: 'Backpacker', icon: '🎒' },
+};
+
+const DIETARY_META: Record<DietaryPreference, { label: string; icon: string }> = {
+  none: { label: 'No Restrictions', icon: '🍽️' },
+  vegetarian: { label: 'Vegetarian', icon: '🥗' },
+  vegan: { label: 'Vegan', icon: '🌱' },
+  halal: { label: 'Halal', icon: '🥩' },
+  gluten_free: { label: 'Gluten-Free', icon: '🌾' },
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface UserProfile {
@@ -41,6 +60,8 @@ interface UserProfile {
   email: string;
   avatar: ImageProps['source'] | null;
   id: string;
+  travelStyle: TravelStyle | null;
+  dietaryPreferences: DietaryPreference[];
 }
 
 interface SignOutModalState {
@@ -72,14 +93,64 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
 
-  // ── User state (placeholder until Supabase auth is wired up) ──────────────
-  const [user] = useState<UserProfile>({
+  // ── User state ────────────────────────────────────────────────────────────
+  const [user, setUser] = useState<UserProfile>({
     name: 'Julia Yu',
     username: '@juliayu',
     email: 'julia.yu@roamies.app',
     avatar: null,
     id: PLACEHOLDER_USER_ID,
+    travelStyle: 'culture',
+    dietaryPreferences: ['vegetarian'],
   });
+
+  // Reload profile whenever the screen comes into focus (e.g. returning from Account Details edit)
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      async function syncUser() {
+        try {
+          let currentUserId = PLACEHOLDER_USER_ID;
+          let currentEmail = 'julia.yu@roamies.app';
+
+          try {
+            const { data } = await supabase.auth.getUser();
+            if (data?.user) {
+              currentUserId = data.user.id;
+              if (data.user.email) currentEmail = data.user.email;
+            }
+          } catch {
+            // Auth not connected or offline, use defaults
+          }
+
+          const profile = await fetchProfile(currentUserId, currentEmail);
+          if (active) {
+            setUser({
+              id: profile.id,
+              name: profile.fullName || 'Julia Yu',
+              username: profile.username
+                ? profile.username.startsWith('@')
+                  ? profile.username
+                  : `@${profile.username}`
+                : '@juliayu',
+              email: profile.email || 'julia.yu@roamies.app',
+              avatar: profile.avatarUrl ? { uri: profile.avatarUrl } : null,
+              travelStyle: profile.travelStyle,
+              dietaryPreferences: profile.dietaryPreferences || [],
+            });
+          }
+        } catch {
+          // ignore error
+        }
+      }
+
+      syncUser();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   // ── Dark mode toggle ───────────────────────────────────────────────────────
   // Initialise from the current colour scheme (which may already be overridden
@@ -208,6 +279,106 @@ export default function ProfileScreen() {
           </View>
         </FadeIn>
 
+        {/* ── Travel Persona & Dietary Preferences Card ── */}
+        <FadeIn delay={80}>
+          {(() => {
+            const actualDietary = (user.dietaryPreferences || []).filter((p) => p !== 'none');
+            const hasPersona = Boolean(user.travelStyle || actualDietary.length > 0);
+
+            return (
+              <Pressable
+                style={[
+                  styles.personaCard,
+                  {
+                    backgroundColor: theme.surfaceLight,
+                    borderColor: theme.borderSubtle,
+                  },
+                ]}
+                onPress={() => router.push('/profile/edit')}
+                accessibilityLabel="View and edit your travel style and dietary preferences"
+                accessibilityRole="button"
+              >
+                <View style={styles.personaHeader}>
+                  <View style={styles.personaTitleRow}>
+                    <Ionicons name="sparkles-outline" size={17} color={theme.accent} />
+                    <Text style={[styles.personaTitle, { color: theme.text }]}>
+                      Travel Persona &amp; Diet
+                    </Text>
+                  </View>
+                  <View style={styles.personaEditButton}>
+                    <Text style={[styles.personaEditText, { color: theme.accentText }]}>
+                      {hasPersona ? 'Edit' : 'Add'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={14} color={theme.accentText} />
+                  </View>
+                </View>
+
+                <View style={styles.badgeRow}>
+                  {hasPersona ? (
+                    <>
+                      {user.travelStyle && TRAVEL_STYLE_META[user.travelStyle] && (
+                        <View
+                          style={[
+                            styles.personaBadge,
+                            {
+                              backgroundColor: theme.surfaceSubtle,
+                              borderColor: theme.borderSubtle,
+                            },
+                          ]}
+                        >
+                          <Text style={styles.personaBadgeIcon}>
+                            {TRAVEL_STYLE_META[user.travelStyle].icon}
+                          </Text>
+                          <Text style={[styles.personaBadgeText, { color: theme.text }]}>
+                            {TRAVEL_STYLE_META[user.travelStyle].label}
+                          </Text>
+                        </View>
+                      )}
+
+                      {actualDietary.map((pref) => {
+                        const meta = DIETARY_META[pref];
+                        if (!meta) return null;
+                        return (
+                          <View
+                            key={pref}
+                            style={[
+                              styles.personaBadge,
+                              {
+                                backgroundColor: theme.surfaceSubtle,
+                                borderColor: theme.borderSubtle,
+                              },
+                            ]}
+                          >
+                            <Text style={styles.personaBadgeIcon}>{meta.icon}</Text>
+                            <Text style={[styles.personaBadgeText, { color: theme.text }]}>
+                              {meta.label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <View
+                      style={[
+                        styles.addBadge,
+                        {
+                          borderColor: theme.accent,
+                          backgroundColor: theme.surfaceSubtle,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="add" size={16} color={theme.accentText} />
+                      <Text style={[styles.addBadgeText, { color: theme.accentText }]}>
+                        Add your travel style &amp; diet
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })()}
+        </FadeIn>
+
         {/* ── Your Roamie QR card ── */}
         <FadeIn delay={100}>
           <Pressable
@@ -259,8 +430,7 @@ export default function ProfileScreen() {
                 title="Account Details"
                 subtitle="Manage personal info and security"
                 onPress={() => {
-                  // TODO: navigate to Edit Profile screen when built
-                  // router.push('/profile/edit');
+                  router.push('/profile/edit');
                 }}
                 theme={theme}
               />
@@ -541,6 +711,73 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 13,
     marginTop: 2,
+  },
+  // ── Persona & Diet card ──
+  personaCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 14,
+    gap: 12,
+  },
+  personaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  personaTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  personaTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  personaEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  personaEditText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  personaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 6,
+  },
+  personaBadgeIcon: {
+    fontSize: 13,
+  },
+  personaBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  addBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    gap: 6,
+  },
+  addBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   // ── QR row card ──
   qrCard: {

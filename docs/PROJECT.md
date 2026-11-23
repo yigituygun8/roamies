@@ -163,7 +163,12 @@ See migrations in `supabase/migrations`.
 `users`: Supabase already provides `auth.users` for login accounts. We do not create another login table or store passwords ourselves. Each user has an `id uuid primary key`, which other tables reference.
   Auth: use Supabase Auth for signup and login. FastAPI verifies the user's access token to obtain their user ID.
   Access: `auth.users` is not exposed through the normal table API. Use the Auth SDK to retrieve authenticated user information.
-  Optional: a separate `profiles` table can be added later for display names or avatars.
+
+`profiles`: `id uuid primary key references auth.users(id) on delete cascade`, `username text unique nullable`, `full_name text not null`, `avatar_path text nullable`, `bio text nullable`, `home_city text nullable`, `travel_style text nullable check (travel_style in ('foodie', 'culture', 'relaxed', 'active', 'budget'))`, `dietary_preferences text[] default '{}'`, `created_at timestamptz default now()`, `updated_at timestamptz default now()`.
+  Purpose: stores user profile information, personal details, travel style, and dietary preferences for group trip matching and lobby display.
+  RLS: all authenticated users can read; only the user themselves can insert or update their row (`auth.uid() = id`).
+  Trigger: `on_auth_user_created` trigger automatically inserts a default row on signup in `auth.users`.
+  Storage: `avatars` public storage bucket. Relative path stored as `avatar_path` (e.g. `{user_id}/avatar_{timestamp}.jpg`). Authenticated users can upload/update only within their own `{user_id}/*` path.
 
 `places`: `id text primary key`, `city text`, `name text`, `category text`, `lat double precision`, `lng double precision`, `opening_hours text nullable`, `description text nullable`, `image_url text nullable`, `image_credit text nullable`.
   RLS: any signed-in user can read; nobody can insert, update, or delete from the app.
